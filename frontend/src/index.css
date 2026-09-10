@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --rwanda-blue: #00a1de;
+  --rwanda-green: #20603d;
+  --rwanda-yellow: #fad201;
+  --rwanda-white: #ffffff;
+  --rwanda-slate: #0f172a;
+  --gov-border: rgba(32, 96, 61, 0.14);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-slate-100 text-slate-800;
+    background: linear-gradient(180deg, rgba(0, 161, 222, 0.06), rgba(32, 96, 61, 0.04) 35%, rgba(248, 250, 252, 1) 100%);
+    font-family: Inter, 'Segoe UI', sans-serif;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .gov-strip {
+    height: 8px;
+    background: linear-gradient(90deg, #00a1de 0%, #fad201 50%, #20603d 100%);
+  }
+
+  .gov-shell {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.08)];
+  }
+
+  .gov-panel {
+    @apply rounded-2xl border border-slate-200 bg-slate-50/90;
+  }
+
+  .gov-badge {
+    @apply inline-flex items-center gap-2 rounded-full border border-rwanda-green/20 bg-rwanda-green/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-rwanda-green;
+  }
+
+  .gov-card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.04)];
+  }
+
+  .gov-header {
+    background: linear-gradient(120deg, rgba(4, 31, 58, 0.96), rgba(32, 96, 61, 0.96));
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-rwanda-blue text-white shadow-[0_10px_24px_rgba(0,161,222,0.25)] hover:bg-sky-600;
+  }
+
+  .btn-success {
+    @apply btn bg-rwanda-green text-white shadow-[0_10px_24px_rgba(32,96,61,0.2)] hover:bg-green-800;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+
+  .btn-outline {
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 shadow-sm transition focus:border-rwanda-blue focus:outline-none focus:ring-4 focus:ring-sky-100;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-semibold text-slate-700;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+}

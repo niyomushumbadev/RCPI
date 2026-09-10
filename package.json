@@ -1,0 +1,16 @@
+{
+  "name": "rcpi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "R-CPI — Rwanda Community Problem Intelligence (backend + frontend monorepo)",
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "dev": "node scripts/dev.js",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "db:reset": "npm run db:push --prefix backend",
+    "db:seed": "npm run db:seed --prefix backend",
+    "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend"
+  },
+  "license": "UNLICENSED"
+}

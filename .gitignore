@@ -1,0 +1,23 @@
+node_modules/
+dist/
+*.local
+.env
+.env.*
+!.env.example
+
+# Local databases and generated TypeScript metadata
+*.db
+*.db-journal
+*.tsbuildinfo
+
+# Local installers and generated verification output
+*.zip
+tsc-out.txt
+build-output.txt
+tmp/
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
