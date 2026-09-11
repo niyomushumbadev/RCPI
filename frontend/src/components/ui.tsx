@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
@@ -28,6 +28,21 @@ export function ErrorBox({ message }: { message: string }) {
     <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
       ⚠️ {message}
     </div>
+  );
+}
+
+export function DashboardError({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const authError = /session|sign in|authentication|permission/i.test(message);
+  return (
+    <section className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+      <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full text-2xl ${authError ? 'bg-amber-50' : 'bg-red-50'}`}>{authError ? '🔐' : '⚠️'}</div>
+      <h2 className="mt-4 text-xl font-bold text-slate-900">{authError ? 'Your secure session needs attention' : 'This dashboard needs a quick retry'}</h2>
+      <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600">{message}</p>
+      <div className="mt-5 flex flex-wrap justify-center gap-3">
+        {onRetry && <button className="btn-primary" onClick={onRetry}>Try again</button>}
+        <a className="btn-outline" href={authError ? '/login' : '/'}>{authError ? 'Sign in again' : 'Return home'}</a>
+      </div>
+    </section>
   );
 }
 
@@ -68,7 +83,7 @@ export function StatCard({ icon, label, value, tone = 'blue' }: { icon: string; 
   };
   return (
     <div className="card flex items-center gap-4 p-4">
-      <div className={`flex h-11 w-11 items-center justify-center rounded-lg text-xl ${tones[tone]}`}>{icon}</div>
+      <div className={`flex h-10 w-10 items-center justify-center rounded text-xl ${tones[tone]}`}>{icon}</div>
       <div>
         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
         <p className="text-2xl font-bold text-slate-900">{value}</p>

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { notificationApi } from '../lib/api';
 import type { Notification } from '../types';
 import RwandaFlagLogo from './RwandaFlagLogo';
+import { getLanguage, setLanguage, type Language } from '../translations';
 
 interface NavItem {
   to: string;
@@ -14,17 +15,21 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: '🏠', roles: ['CITIZEN'] },
-  { to: '/workflow', label: 'Reports Queue', icon: '📥', roles: ['OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
+  { to: '/workflow', label: 'Reports Queue', icon: '📥', roles: ['OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
+  { to: '/government/intelligence', label: 'GIS & Intelligence', icon: '🗺️', roles: ['OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
+  { to: '/government/ai', label: 'AI Dashboard', icon: '🤖', roles: ['OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
   { to: '/admin', label: 'Administration', icon: '⚙️', roles: ['DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
   { to: '/citizen/report/create', label: 'Report a Problem', icon: '📝', roles: ['CITIZEN'] },
   { to: '/citizen/reports', label: 'My Reports', icon: '📋', roles: ['CITIZEN'] },
-  { to: '/citizen/notifications', label: 'Notifications', icon: '🔔', roles: ['CITIZEN'] },
+  { to: '/citizen/assistant', label: 'AI Assistant', icon: '🤖', roles: ['CITIZEN'] },
+  { to: '/notifications', label: 'Notifications', icon: '🔔', roles: ['CITIZEN', 'OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
   { to: '/profile', label: 'Profile', icon: '👤', roles: ['CITIZEN'] },
   { to: '/citizen/help', label: 'Help', icon: '❓', roles: ['CITIZEN'] },
-  { to: '/map', label: 'Community Map', icon: '🗺️', roles: ['CITIZEN', 'OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
-  { to: '/community', label: 'Community', icon: '🌍', roles: ['CITIZEN', 'OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
+  { to: '/map', label: 'Community Map', icon: '🗺️', roles: ['CITIZEN', 'OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
+  { to: '/community', label: 'Community', icon: '🌍', roles: ['CITIZEN', 'OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
   { to: '/admin/users', label: 'Manage users', icon: '👥', roles: ['DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
   { to: '/admin/audit-logs', label: 'Audit logs', icon: '🗂️', roles: ['DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
+  { to: '/admin/management', label: 'System management', icon: '🛠️', roles: ['NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
 ];
 
 export default function Layout() {
@@ -34,6 +39,7 @@ export default function Layout() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [language, setSelectedLanguage] = useState<Language>(getLanguage());
 
   useEffect(() => {
     if (!user) return;
@@ -83,17 +89,19 @@ export default function Layout() {
     return !item.roles || item.roles.includes(user.role);
   });
 
+  const homePath = user?.role === 'CITIZEN' ? '/citizen/dashboard' : '/workflow';
+
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="dashboard-shell min-h-screen bg-slate-100">
       <div className="gov-strip" />
 
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-slate-900 text-white shadow-lg shadow-slate-900/10">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
+      <header className="dashboard-topbar sticky top-0 z-30 text-white">
+        <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-4 lg:px-7">
           <div className="flex items-center gap-3">
-            <button className="rounded p-1 text-slate-200 hover:bg-slate-800 md:hidden" onClick={() => setMenuOpen((v) => !v)} aria-label="Toggle menu">
+            <button className="rounded p-1 text-white hover:bg-white/10 md:hidden" onClick={() => setMenuOpen((v) => !v)} aria-label="Toggle menu">
               ☰
             </button>
-            <NavLink to="/dashboard" className="flex items-center gap-3">
+            <NavLink to={homePath} className="flex items-center gap-3">
               <RwandaFlagLogo className="border border-white/30 bg-white/10" size={36} />
               <div className="leading-none">
                 <div className="text-[11px] font-black uppercase tracking-[0.14em] text-blue-200">Rwanda Community Problem Intelligence</div>
@@ -112,11 +120,17 @@ export default function Layout() {
               </NavLink>
 
               <NavLink
-                to="/dashboard"
+                to={homePath}
                 className="inline-flex items-center rounded-full border border-rwanda-blue/30 bg-rwanda-blue/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-rwanda-blue hover:bg-rwanda-blue/20"
               >
                 Portal
               </NavLink>
+
+              <select aria-label="Language" className="rounded-full border border-slate-700 bg-slate-800 px-2 py-1.5 text-xs font-semibold text-slate-200" value={language} onChange={(event) => { const next = event.target.value as Language; setSelectedLanguage(next); setLanguage(next); window.location.reload(); }}>
+                <option value="rw">Kinyarwanda</option>
+                <option value="en">English</option>
+                <option value="fr">Français</option>
+              </select>
 
               <div className="relative">
                 <button
@@ -180,17 +194,17 @@ export default function Layout() {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
-        <aside className={`${menuOpen ? 'block' : 'hidden'} w-52 shrink-0 md:block`}>
-          <nav className="sticky top-20 space-y-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+      <div className="mx-auto flex max-w-[1440px] gap-0 px-0 lg:px-7">
+        <aside className={`${menuOpen ? 'block' : 'hidden'} dashboard-sidebar w-56 shrink-0 md:block`}>
+          <nav className="sticky top-16 space-y-1 p-3 lg:p-4">
             {visibleNav.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 onClick={() => setMenuOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                    isActive ? 'bg-rwanda-blue/10 text-rwanda-green' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    `flex items-center gap-3 border-l-2 px-3 py-3 text-sm font-medium transition-colors ${
+                    isActive ? 'border-rwanda-yellow bg-white/10 text-white' : 'border-transparent text-blue-100 hover:bg-white/10 hover:text-white'
                   }`
                 }
               >
@@ -201,10 +215,18 @@ export default function Layout() {
           </nav>
         </aside>
 
-        <main className="min-w-0 flex-1">
+        <main className="dashboard-content min-w-0 flex-1 px-4 py-6 lg:px-7">
           <Outlet />
         </main>
       </div>
+
+      <footer className="border-t border-slate-800 bg-slate-950 text-slate-400">
+        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-5 text-xs lg:px-7">
+          <span>R-CPI · Rwanda Community Problem Intelligence</span>
+          <span>Secure public-service workspace · Kinyarwanda · English · Français</span>
+          <NavLink to="/citizen/help" className="text-blue-200 hover:text-white">Help and support</NavLink>
+        </div>
+      </footer>
     </div>
   );
 }

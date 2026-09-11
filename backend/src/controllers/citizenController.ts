@@ -3,6 +3,7 @@ import { prisma } from '../config/db';
 import { ok, fail, notFound, generateReportReference } from '../utils/helpers';
 import { audit } from '../services/audit.service';
 import { notify } from '../services/notification.service';
+import { enqueueAIAnalysis } from '../services/ai.service';
 
 // ─── Own-report guard: object-level authorization (Task 10 §13) ───
 async function getOwnReport(req: Request, res: Response) {
@@ -209,6 +210,7 @@ export async function createReport(req: Request, res: Response) {
 
   await audit(req, { action: 'REPORT_CREATED', resourceType: 'REPORT', resourceId: String(report.id), detail: reference });
   await notify({ userId: citizenId, type: 'REPORT_RECEIVED', title: 'Report received', message: `Your report "${report.title}" has been received and is awaiting review.`, reportId: report.id });
+  await enqueueAIAnalysis(report.id);
 
   return ok(res, {
     report: {

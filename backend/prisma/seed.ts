@@ -55,6 +55,20 @@ const ROLES = [
   { name: 'ANALYST', description: 'Analytics and decision support user', isSystem: true },
 ];
 
+const PERMISSIONS = [
+  ['users.read', 'View users', 'View user accounts and assignments.'],
+  ['users.manage', 'Manage users', 'Create, activate, deactivate and change user roles.'],
+  ['roles.manage', 'Manage permissions', 'Grant role permissions to authorized users.'],
+  ['reports.read', 'View reports', 'View operational reports within the assigned scope.'],
+  ['reports.manage', 'Manage reports', 'Verify, assign, transition and resolve reports.'],
+  ['reports.export', 'Export reports', 'Export authorized report data.'],
+  ['ai.read', 'View AI intelligence', 'View AI analysis, priority and prediction signals.'],
+  ['gis.read', 'View GIS intelligence', 'View maps, geographic statistics and risk layers.'],
+  ['catalog.manage', 'Manage catalogs', 'Manage categories and departments.'],
+  ['alerts.manage', 'Manage alerts', 'Publish and manage public service alerts.'],
+  ['audit.read', 'View audit logs', 'Review accountability and security activity.'],
+] as const;
+
 const CATEGORIES = [
   { name: 'Roads', nameRw: 'Imihanda', nameFr: 'Routes', icon: '🚧', color: '#F59E0B', sortOrder: 1 },
   { name: 'Drainage', nameRw: 'Imyanda n\'amazi y\'imvura', nameFr: 'Drainage', icon: '💧', color: '#00A1DE', sortOrder: 2 },
@@ -122,6 +136,22 @@ async function main() {
     await prisma.role.upsert({ where: { name: role.name }, update: {}, create: role });
   }
   console.log('✓ Roles');
+
+  for (const [code, name, description] of PERMISSIONS) {
+    await prisma.permission.upsert({ where: { code }, update: { name, description }, create: { code, name, description } });
+  }
+  const systemRole = await prisma.role.findUnique({ where: { name: 'SYSTEM_ADMIN' } });
+  if (systemRole) {
+    const permissions = await prisma.permission.findMany();
+    for (const permission of permissions) {
+      await prisma.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId: systemRole.id, permissionId: permission.id } },
+        update: {},
+        create: { roleId: systemRole.id, permissionId: permission.id },
+      });
+    }
+  }
+  console.log('✓ Permissions and system-admin grants');
 
   // 3. Categories
   for (const cat of CATEGORIES) {

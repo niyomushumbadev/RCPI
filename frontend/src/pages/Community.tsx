@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { citizenApi } from '../lib/api';
 import type { CommunityInsights, CommunityAlert } from '../types';
-import { PageHeader, Spinner, ErrorBox, StatCard, EmptyState } from '../components/ui';
+import { Spinner, ErrorBox, StatCard, EmptyState } from '../components/ui';
 import { timeAgo, formatDate } from '../lib/format';
 
 const SEVERITY_STYLE: Record<string, string> = {
@@ -35,8 +35,8 @@ export default function Community() {
     : 0;
 
   return (
-    <div>
-      <PageHeader title="Community insights" subtitle="Aggregated, privacy-respecting statistics from across Rwanda." />
+    <div className="space-y-6">
+      <section className="rounded-2xl bg-slate-900 p-6 text-white shadow-sm"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-rwanda-yellow">Rwanda community pulse</p><h1 className="mt-2 text-3xl font-black">Community insights</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">A clear public view of reported problems, progress, resolved work and government alerts across Rwanda.</p></div><a href="/map" className="btn-primary">Open Rwanda map</a></div></section>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon="🌍" label="Public reports" value={insights.stats.totalReports} tone="blue" />
@@ -45,10 +45,16 @@ export default function Community() {
         <StatCard icon="🔍" label="Under review" value={insights.stats.underReviewReports} tone="slate" />
       </div>
 
+      <section className="grid gap-4 md:grid-cols-3">
+        <a href="/map" className="rounded-2xl border border-blue-100 bg-blue-50 p-5 transition hover:border-blue-300"><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Explore geography</p><h2 className="mt-2 text-lg font-bold text-slate-900">Open the Rwanda map</h2><p className="mt-1 text-sm text-slate-600">Search public problems by location, category and status.</p><span className="mt-4 inline-block text-sm font-semibold text-blue-700">View map →</span></a>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5"><p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Service delivery</p><h2 className="mt-2 text-lg font-bold text-slate-900">{resolutionRate}% resolved</h2><p className="mt-1 text-sm text-slate-600">Public reports resolved or closed across the current dataset.</p></div>
+        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-5"><p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-700">Public communication</p><h2 className="mt-2 text-lg font-bold text-slate-900">{alerts.length} active alerts</h2><p className="mt-1 text-sm text-slate-600">Official updates from government teams appear below.</p></div>
+      </section>
+
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         {/* Most reported */}
-        <section className="card p-6">
-          <h2 className="mb-4 font-bold text-slate-900">Most reported problems</h2>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-rwanda-blue">Where attention is needed</p><h2 className="mt-1 font-bold text-slate-900">Most reported problems</h2></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">Public data</span></div>
           {insights.mostReported.length === 0 ? (
             <p className="text-sm text-slate-400">No public reports yet.</p>
           ) : (
@@ -63,7 +69,7 @@ export default function Community() {
                         <span className="font-medium text-slate-700">{c.name}</span>
                         <span className="text-slate-400">{c.count}</span>
                       </div>
-                      <div className="mt-1 h-2 rounded-full bg-slate-100">
+                      <div className="mt-2 h-2 rounded-full bg-slate-100">
                         <div className="h-2 rounded-full bg-rwanda-blue" style={{ width: `${(c.count / max) * 100}%` }} />
                       </div>
                     </div>
@@ -76,8 +82,8 @@ export default function Community() {
         </section>
 
         {/* Recently resolved */}
-        <section className="card p-6">
-          <h2 className="mb-4 font-bold text-slate-900">Recently resolved 🎉</h2>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-rwanda-green">Service delivery progress</p><h2 className="mt-1 font-bold text-slate-900">Recently resolved</h2></div><span className="text-2xl">✓</span></div>
           {insights.recentlyResolved.length === 0 ? (
             <p className="text-sm text-slate-400">Nothing resolved yet — your reports make this happen!</p>
           ) : (
@@ -96,8 +102,8 @@ export default function Community() {
       </div>
 
       {/* Alerts */}
-      <section className="mt-6">
-        <h2 className="mb-4 text-lg font-bold text-slate-900">📢 Community alerts</h2>
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-600">Official updates</p><h2 className="mt-1 text-lg font-bold text-slate-900">Community alerts</h2></div><span className="text-2xl">!</span></div>
         {alerts.length === 0 ? (
           <EmptyState icon="🔔" title="No active alerts" hint="Government-issued alerts about weather, safety and services will appear here." />
         ) : (

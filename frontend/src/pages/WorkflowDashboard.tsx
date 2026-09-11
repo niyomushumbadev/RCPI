@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { workflowApi } from '../lib/api';
 import type { WorkflowStats, WorkflowReport } from '../types';
 import { StatusBadge, UrgencyBadge, timeAgo } from '../lib/format';
-import { PageHeader, Spinner, ErrorBox, StatCard, EmptyState } from '../components/ui';
+import { PageHeader, Spinner, DashboardError, StatCard, EmptyState } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 
 export default function WorkflowDashboard() {
@@ -24,7 +24,7 @@ export default function WorkflowDashboard() {
   }, []);
 
   if (loading) return <Spinner />;
-  if (error) return <ErrorBox message={error} />;
+  if (error) return <DashboardError message={error} onRetry={() => window.location.reload()} />;
   if (!stats) return null;
 
   return (
@@ -37,6 +37,7 @@ export default function WorkflowDashboard() {
             <Link to="/" className="btn-outline text-sm">Home</Link>
             <Link to="/dashboard" className="btn-outline text-sm">Dashboard</Link>
             <Link to="/workflow/reports" className="btn-primary">Open reports queue</Link>
+            <Link to="/government/intelligence" className="btn-outline">GIS & intelligence</Link>
           </div>
         }
       />

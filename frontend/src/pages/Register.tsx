@@ -69,7 +69,7 @@ export default function Register() {
         districtId: districtId ? Number(districtId) : undefined,
         sectorId: sectorId ? Number(sectorId) : undefined,
       });
-      navigate('/dashboard');
+      navigate('/citizen/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {

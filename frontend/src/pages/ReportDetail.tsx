@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { citizenApi, workflowApi } from '../lib/api';
-import type { ChatMessage, ReportDetail as ReportData } from '../types';
+import { aiApi, citizenApi, evidenceApi, workflowApi } from '../lib/api';
+import type { AIAnalysis, ChatMessage, ReportDetail as ReportData } from '../types';
 import { StatusBadge, UrgencyBadge, formatBytes, formatDateTime, timeAgo } from '../lib/format';
 import { Spinner, ErrorBox } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
@@ -15,11 +15,14 @@ export default function ReportDetail() {
 
   const [report, setReport] = useState<ReportData | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+  const [evidenceBusy, setEvidenceBusy] = useState(false);
 
   const isOfficer = user && ['OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'].includes(user.role);
 
@@ -53,6 +56,12 @@ export default function ReportDetail() {
         setMessages(m);
       }
       setError('');
+      try {
+        const result = await aiApi.getReportAnalysis(Number(id));
+        setAiAnalysis(result.analysis);
+      } catch {
+        setAiAnalysis(null);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load report');
     } finally {
@@ -81,6 +90,21 @@ export default function ReportDetail() {
       setError(err instanceof Error ? err.message : 'Could not send message');
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleEvidenceUpload(e: React.FormEvent) {
+    e.preventDefault();
+    if (!evidenceFile || !report) return;
+    setEvidenceBusy(true);
+    try {
+      await evidenceApi.upload(report.id, evidenceFile);
+      setEvidenceFile(null);
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not upload evidence');
+    } finally {
+      setEvidenceBusy(false);
     }
   }
 
@@ -119,6 +143,34 @@ export default function ReportDetail() {
 
         <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{report.description}</p>
 
+        {aiAnalysis ? (
+          <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-900">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="font-bold text-indigo-900">🤖 AI decision support</h2>
+              <Link to={`/ai/reports/${report.id}`} className="text-sm font-semibold text-indigo-700 hover:underline">View full analysis →</Link>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.14em] text-indigo-600">Classification</p>
+                <p className="mt-1 text-base font-semibold">{aiAnalysis.predictions.find((p) => p.predictionType === 'CATEGORY')?.predictionValue ?? 'Pending'}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.14em] text-indigo-600">Severity</p>
+                <p className="mt-1 text-base font-semibold">{aiAnalysis.predictions.find((p) => p.predictionType === 'SEVERITY')?.predictionValue ?? 'Pending'}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.14em] text-indigo-600">Confidence</p>
+                <p className="mt-1 text-base font-semibold">{Math.round((aiAnalysis.overallConfidence ?? 0) * 100)}%</p>
+              </div>
+            </div>
+            {aiAnalysis.explanation && <p className="mt-3 text-indigo-700">{aiAnalysis.explanation}</p>}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+            🤖 AI analysis is being prepared for this report. <Link to={`/ai/reports/${report.id}`} className="font-semibold text-rwanda-blue hover:underline">Check the AI status</Link>
+          </div>
+        )}
+
         <dl className="mt-4 grid gap-x-8 gap-y-2 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2">
           <div className="flex gap-2">
             <dt className="text-slate-400">Location:</dt>
@@ -145,12 +197,19 @@ export default function ReportDetail() {
             <ul className="flex flex-wrap gap-2">
               {report.evidence.map((ev) => (
                 <li key={ev.id} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600">
-                  {ev.mimeType.startsWith('image/') ? '🖼️' : '📄'} {ev.fileName} <span className="text-slate-400">({formatBytes(ev.sizeBytes)})</span>
+                  <a href={evidenceApi.downloadUrl(report.id, ev.id)} className="hover:text-rwanda-blue hover:underline">{ev.mimeType.startsWith('image/') ? '🖼️' : '📄'} {ev.fileName}</a> <span className="text-slate-400">({formatBytes(ev.sizeBytes)})</span>
                 </li>
               ))}
             </ul>
           </div>
         )}
+        <form onSubmit={handleEvidenceUpload} className="mt-4 border-t border-slate-100 pt-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-64 flex-1"><label className="label" htmlFor="report-evidence">Add evidence</label><input id="report-evidence" type="file" className="input" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,video/mp4,video/webm,video/quicktime" onChange={(event) => setEvidenceFile(event.target.files?.[0] ?? null)} /></div>
+            <button className="btn-outline" disabled={!evidenceFile || evidenceBusy}>{evidenceBusy ? 'Uploading…' : 'Upload evidence'}</button>
+          </div>
+          <p className="mt-1 text-xs text-slate-400">Images, PDF, text and video files up to 10 MB. Evidence is access-controlled.</p>
+        </form>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

@@ -38,6 +38,7 @@ function parsePort(value, fallback) {
 // Ports must match frontend/vite.config.ts (proxy target) and backend/.env
 const API_PORT = parsePort(process.env.PORT, 5000);
 const WEB_PORT = parsePort(process.env.VITE_PORT, 5173);
+const AI_PORT = parsePort(process.env.AI_PORT, 8000);
 
 const children = [];
 let shuttingDown = false;
@@ -92,6 +93,7 @@ function freePortNow(port, label) {
 // cause of "Unexpected server response" and proxy errors.
 freePortNow(API_PORT, 'API');
 freePortNow(WEB_PORT, 'web');
+freePortNow(AI_PORT, 'AI');
 
 function pidsOnPort(port) {
   try {
@@ -157,8 +159,9 @@ function shutdown(exitCode = 0) {
 process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 
-log('sys', `Starting R-CPI dev environment (API :${API_PORT} · web :${WEB_PORT})`);
+log('sys', `Starting R-CPI dev environment (API :${API_PORT} · web :${WEB_PORT} · AI :${AI_PORT})`);
 log('sys', 'Press Ctrl+C to stop both servers.');
 
 start('api', 'npm', ['run', 'dev'], path.join(ROOT, 'backend'));
 start('web', 'npm', ['run', 'dev'], path.join(ROOT, 'frontend'), { PORT: String(WEB_PORT) });
+start('ai', 'python', ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', String(AI_PORT)], path.join(ROOT, 'ai-service'));

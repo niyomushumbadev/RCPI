@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { citizenApi } from '../lib/api';
 import type { CitizenDashboard as DashboardData } from '../types';
 import { StatusBadge } from '../lib/format';
-import { PageHeader, Spinner, ErrorBox, StatCard, EmptyState } from '../components/ui';
+import { PageHeader, Spinner, DashboardError, StatCard, EmptyState } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { getLanguage, translations } from '../translations';
 
@@ -16,15 +16,14 @@ export default function CitizenDashboard() {
   const t = translations[language];
 
   useEffect(() => {
-    citizenApi
-      .dashboard()
+    citizenApi.dashboard()
       .then(setData)
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load dashboard'))
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <Spinner />;
-  if (error) return <ErrorBox message={error} />;
+  if (error) return <DashboardError message={error} onRetry={() => window.location.reload()} />;
   if (!data) return null;
 
   const quickAccessCards = [
@@ -33,6 +32,7 @@ export default function CitizenDashboard() {
     { to: '/citizen/report/create', label: 'Upload video', icon: '🎥', hint: 'Add a short video clip' },
     { to: '/citizen/report/create', label: 'GPS location', icon: '📍', hint: 'Use current location' },
     { to: '/citizen/reports', label: 'My reports', icon: '📋', hint: 'Track all submissions' },
+    { to: '/citizen/assistant', label: 'AI assistant', icon: '🤖', hint: 'Ask how to use R-CPI' },
     { to: '/notifications', label: 'Notifications', icon: '🔔', hint: 'Status updates and alerts' },
     { to: '/profile', label: 'Profile', icon: '👤', hint: 'Account and contact info' },
   ];

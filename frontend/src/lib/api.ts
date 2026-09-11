@@ -25,6 +25,10 @@ import type {
   AdminUser,
   AuditLog,
   TimelineEntry,
+  AIAnalysis,
+  AIJob,
+  IntelligenceDashboard,
+  IntelligenceSearchResult,
 } from '../types';
 
 // ─────────────────────────────────────────────────────────────
@@ -110,15 +114,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   const headers: Record<string, string> = {};
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (auth && accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  const isMultipart = typeof FormData !== 'undefined' && body instanceof FormData;
+  if (body !== undefined && !isMultipart) headers['Content-Type'] = 'application/json';
+  const requestAccessToken = accessToken;
+  if (auth && requestAccessToken) headers.Authorization = `Bearer ${requestAccessToken}`;
 
   const doFetch = () =>
     fetch(url.toString(), {
       method,
       headers,
       credentials: 'include',
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body !== undefined ? (isMultipart ? body as FormData : JSON.stringify(body)) : undefined,
     });
 
   let res: Response;
@@ -150,7 +156,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     // Vite dev proxy (or nginx) when the API is down or misrouted.
     const hint =
       res.status >= 500
-        ? 'The server is temporarily unavailable. If this persists, make sure the API is running.'
+        ? 'The R-CPI API is temporarily unavailable. Please start the backend server and refresh the page.'
         : res.status === 404
           ? 'API endpoint not found. The backend may be out of date or not running.'
           : 'The server returned an unexpected (non-JSON) response.';
@@ -159,7 +165,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (!res.ok || !json.success) {
     // 401 after refresh attempt = session truly over
-    if (res.status === 401 && auth) {
+    if (res.status === 401 && auth && accessToken === requestAccessToken) {
       setAccessToken(null);
     }
     const fallback =
@@ -168,9 +174,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
         : res.status === 403
           ? 'You do not have permission to do that.'
           : res.status >= 500
-            ? 'A server error occurred. Please try again later.'
+            ? 'The R-CPI API is currently unavailable. Please start the backend server and refresh the page.'
             : 'Request failed';
-    throw new ApiError(json.message ?? fallback, res.status);
+    throw new ApiError(res.status === 401 ? fallback : (json.message ?? fallback), res.status);
   }
   return json.data as T;
 }
@@ -216,6 +222,13 @@ export const metaApi = {
   categories: (activeOnly = true) =>
     request<{ categories: Category[] }>('/categories', { query: { activeOnly: activeOnly ? undefined : 'false' }, auth: false }),
   departments: () => request<{ departments: Department[] }>('/departments'),
+};
+
+export const aiApi = {
+  getReportAnalysis: (reportId: number) =>
+    request<{ job: AIJob | null; analysis: AIAnalysis | null }>(`/ai/reports/${reportId}`),
+  retryReportAnalysis: (reportId: number) =>
+    request<{ job: AIJob }>(`/ai/reports/${reportId}/retry`, { method: 'POST' }),
 };
 
 // ─── Notifications ───
@@ -286,14 +299,25 @@ export const citizenApi = {
   activity: () =>
     request<{ activity: Array<{ type: string; label: string; reference: string; at: string }> }>('/citizen/activity'),
 
-  mapProblems: () => request<{ problems: MapProblem[] }>('/citizen/map/problems', { auth: false }),
+  mapProblems: () => request<{ problems: MapProblem[] }>('/map/problems', { auth: false }),
 
   nearby: (lat: number, lng: number, radiusKm = 10) =>
-    request<{ problems: NearbyProblem[] }>('/citizen/problems/nearby', { query: { lat, lng, radiusKm } }),
+    request<{ problems: NearbyProblem[] }>('/map/nearby', { query: { lat, lng, radiusKm }, auth: false }),
 
-  insights: () => request<CommunityInsights>('/citizen/community/insights'),
+  insights: () => request<CommunityInsights>('/community/insights', { auth: false }),
 
-  alerts: () => request<{ alerts: CommunityAlert[] }>('/citizen/community/alerts'),
+  alerts: () => request<{ alerts: CommunityAlert[] }>('/alerts', { auth: false }),
+};
+
+export const evidenceApi = {
+  upload: (reportId: number, file: File, evidenceType = 'CITIZEN_EVIDENCE', description?: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('evidenceType', evidenceType);
+    if (description) form.append('description', description);
+    return request<{ evidence: { id: number; fileName: string; mimeType: string; sizeBytes: number; uploadedAt: string } }>(`/reports/${reportId}/evidence`, { method: 'POST', body: form });
+  },
+  downloadUrl: (reportId: number, evidenceId: number) => `/api/v1/reports/${reportId}/evidence/${evidenceId}/download`,
 };
 
 export interface CreateReportInput {
@@ -340,6 +364,12 @@ export const workflowApi = {
     request<null>(`/workflow/reports/${id}/messages`, { method: 'POST', body: { message } }),
 };
 
+export const intelligenceApi = {
+  dashboard: () => request<IntelligenceDashboard>('/intelligence/dashboard'),
+  search: (query: { q?: string; status?: string; districtId?: number; categoryId?: number }) =>
+    request<{ reports: IntelligenceSearchResult[] }>('/intelligence/reports/search', { query }),
+};
+
 // ─── Admin ───
 
 export const adminApi = {
@@ -361,6 +391,14 @@ export const adminApi = {
 
   setUserStatus: (id: number, isActive: boolean) =>
     request<null>(`/admin/users/${id}/status`, { method: 'PUT', body: { isActive } }),
+
+  setUserRole: (id: number, roleName: string) =>
+    request<{ user: { id: number; email: string; role: string } }>(`/admin/users/${id}/role`, { method: 'PUT', body: { roleName } }),
+
+  permissions: () => request<{ permissions: Array<{ id: number; code: string; name: string; description: string | null }>; roles: Array<{ id: number; name: string; description: string | null; permissions: string[] }> }>('/admin/permissions'),
+
+  setRolePermissions: (roleId: number, permissionCodes: string[]) =>
+    request<{ role: string; permissionCodes: string[] }>(`/admin/roles/${roleId}/permissions`, { method: 'PUT', body: { permissionCodes } }),
 
   auditLogs: (page = 1, action?: string, resourceType?: string) =>
     request<{ logs: AuditLog[]; pagination: Pagination }>('/admin/audit-logs', { query: { page, action, resourceType } }),

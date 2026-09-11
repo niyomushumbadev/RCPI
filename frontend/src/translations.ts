@@ -71,3 +71,10 @@ export function getLanguage(): Language {
   if (nav.startsWith('en')) return 'en';
   return 'rw';
 }
+
+export function setLanguage(language: Language) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem('rcpi-language', language);
+  document.documentElement.lang = language;
+  window.dispatchEvent(new CustomEvent('rcpi-language-change', { detail: language }));
+}

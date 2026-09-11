@@ -224,7 +224,9 @@ export default function AdminUsers() {
                     <p className="text-xs text-slate-400">{u.email}{u.phone ? ` · ${u.phone}` : ''}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`badge ${ROLE_BADGE[u.role] ?? 'bg-slate-100 text-slate-600'}`}>{u.role.replace(/_/g, ' ')}</span>
+                    <select className={`badge border-0 ${ROLE_BADGE[u.role] ?? 'bg-slate-100 text-slate-600'}`} value={u.role} onChange={async (event) => { try { await adminApi.setUserRole(u.id, event.target.value); setData((d) => d ? { ...d, users: d.users.map((item) => item.id === u.id ? { ...item, role: event.target.value as AdminUser['role'] } : item) } : d); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not update user role'); } }}>
+                      {ROLES.map((roleName) => <option key={roleName} value={roleName}>{roleName.replace(/_/g, ' ')}</option>)}
+                    </select>
                   </td>
                   <td className="px-4 py-3 text-slate-600">
                     {[u.district, u.province].filter(Boolean).join(' / ') || '—'}

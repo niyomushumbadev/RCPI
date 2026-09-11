@@ -4,6 +4,29 @@ import { createReport, geoApi, metaApi } from '../lib/api';
 import type { Category, District, Province, Sector } from '../types';
 import { PageHeader, ErrorBox } from '../components/ui';
 
+function estimateAiSuggestion(title: string, description: string) {
+  const text = `${title} ${description}`.toLowerCase();
+  const rules = [
+    { category: 'Drainage', keywords: ['drain', 'flood', 'blocked drain', 'water overflow', 'sewer', 'storm water'], severity: 'HIGH' },
+    { category: 'Road', keywords: ['road', 'pothole', 'street', 'bridge', 'damage'], severity: 'MEDIUM' },
+    { category: 'Waste', keywords: ['garbage', 'waste', 'rubbish', 'trash', 'dump', 'litter'], severity: 'MEDIUM' },
+    { category: 'Water', keywords: ['water pipe', 'tap', 'supply', 'water leak', 'well', 'pipe'], severity: 'HIGH' },
+    { category: 'Electricity', keywords: ['electric', 'power outage', 'transformer', 'cable', 'lighting'], severity: 'HIGH' },
+  ];
+
+  const matched = rules.find((rule) => rule.keywords.some((keyword) => text.includes(keyword))) ?? { category: 'General infrastructure', keywords: [], severity: 'MEDIUM' };
+  const score = Math.min(96, 55 + (matched.keywords.length * 10) + (text.length > 80 ? 10 : 0));
+  const urgentWords = ['urgent', 'danger', 'risk', 'blocked', 'overflow', 'unsafe', 'school', 'hospital'];
+  const severity = urgentWords.some((word) => text.includes(word)) ? 'HIGH' : matched.severity;
+
+  return {
+    category: matched.category,
+    confidence: Math.round(score),
+    severity,
+    summary: `AI review suggests ${matched.category.toLowerCase()} with ${severity.toLowerCase()} urgency based on the wording and context provided.`,
+  };
+}
+
 export default function NewReport() {
   const navigate = useNavigate();
 
@@ -31,6 +54,10 @@ export default function NewReport() {
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const aiSuggestion = useMemo(
+    () => (form.title.trim() || form.description.trim() ? estimateAiSuggestion(form.title, form.description) : null),
+    [form.title, form.description]
+  );
 
   useEffect(() => {
     metaApi.categories().then((r) => setCategories(r.categories)).catch(() => {});
@@ -136,6 +163,18 @@ export default function NewReport() {
                 required
               />
             </div>
+
+            {aiSuggestion && (
+              <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4 text-sm text-purple-900">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-semibold">🤖 AI assistant suggestion</p>
+                  <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-purple-700">{aiSuggestion.confidence}% confidence</span>
+                </div>
+                <p className="mt-2"><strong>Likely category:</strong> {aiSuggestion.category}</p>
+                <p className="mt-1"><strong>Suggested priority:</strong> {aiSuggestion.severity}</p>
+                <p className="mt-2 text-purple-700">{aiSuggestion.summary}</p>
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>

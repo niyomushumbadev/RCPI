@@ -19,20 +19,10 @@ export function RequireAuth({ children, roles }: { children: ReactNode; roles?: 
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    return <Navigate to="/login" state={{ from: location.pathname, reason: 'session-expired' }} replace />;
   }
 
-  const adminDemoEmails = new Set([
-    'district-admin@rcpi.gov.rw',
-    'national-admin@rcpi.gov.rw',
-    'admin@rcpi.gov.rw',
-    'analyst@rcpi.gov.rw',
-    'officer@rcpi.gov.rw',
-  ]);
-
-  const isDemoAdminAccess = adminDemoEmails.has(user.email.toLowerCase());
-
-  if (roles && !isDemoAdminAccess && !roles.includes(user.role)) {
+  if (roles && !roles.includes(user.role)) {
     return <Navigate to="/forbidden" replace />;
   }
 

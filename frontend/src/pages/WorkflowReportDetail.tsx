@@ -103,6 +103,7 @@ export default function WorkflowReportDetail() {
   if (!report) return null;
 
   const needsDepartment = targetStatus === 'ASSIGNED';
+  const canAct = user?.role !== 'ANALYST';
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -181,7 +182,7 @@ export default function WorkflowReportDetail() {
           {actionMsg && <div className="mb-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">{actionMsg}</div>}
 
           {/* Status transition */}
-          <form onSubmit={handleTransition} className="rounded-lg border border-slate-200 p-4">
+          {canAct ? <form onSubmit={handleTransition} className="rounded-lg border border-slate-200 p-4">
             <h3 className="text-sm font-bold text-slate-800">Move status forward</h3>
             {transitionError && <div className="mt-2"><ErrorBox message={transitionError} /></div>}
             {report.allowedTransitions.length === 0 ? (
@@ -232,10 +233,10 @@ export default function WorkflowReportDetail() {
                 </button>
               </>
             )}
-          </form>
+          </form> : <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">Analyst access is read-only for workflow actions.</p>}
 
           {/* Public update */}
-          <form onSubmit={postUpdate} className="mt-4 rounded-lg border border-slate-200 p-4">
+          {canAct && <form onSubmit={postUpdate} className="mt-4 rounded-lg border border-slate-200 p-4">
             <h3 className="text-sm font-bold text-slate-800">Post public update</h3>
             <textarea
               className="input mt-3 min-h-20"
@@ -247,7 +248,7 @@ export default function WorkflowReportDetail() {
             <button type="submit" className="btn-outline mt-3" disabled={actionBusy || !updateMsg.trim()}>
               Post update
             </button>
-          </form>
+          </form>}
         </section>
 
         {/* Timeline + chat */}
@@ -292,10 +293,10 @@ export default function WorkflowReportDetail() {
                 ))
               )}
             </div>
-            <form onSubmit={sendReply} className="mt-4 flex gap-2 border-t border-slate-100 pt-4">
+            {canAct && <form onSubmit={sendReply} className="mt-4 flex gap-2 border-t border-slate-100 pt-4">
               <input className="input" placeholder="Reply to citizen…" maxLength={2000} value={chatMsg} onChange={(e) => setChatMsg(e.target.value)} />
               <button className="btn-primary" disabled={actionBusy || !chatMsg.trim()}>Send</button>
-            </form>
+            </form>}
           </div>
         </section>
       </div>

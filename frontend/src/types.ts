@@ -37,6 +37,37 @@ export interface ApiEnvelope<T> {
   data: T | null;
 }
 
+export interface AIAnalysis {
+  id: number;
+  reportId: number;
+  language: string | null;
+  overallConfidence: number | null;
+  status: string;
+  explanation: string | null;
+  imageQuality: string | null;
+  imageUsable: boolean | null;
+  predictions: Array<{
+    id: number;
+    predictionType: string;
+    predictionValue: string;
+    confidenceScore: number | null;
+    modelVersion: string;
+  }>;
+  duplicateMatches: Array<{ matchedReportId: number; similarityScore: number; matchType: string }>;
+  recommendations: Array<{ priority: string; department: string | null; recommendation: string }>;
+}
+
+export interface AIJob {
+  id: number;
+  reportId: number;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'RETRYING';
+  attempts: number;
+  errorMessage: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
 export interface Pagination {
   page: number;
   pageSize: number;
@@ -298,6 +329,26 @@ export interface AdminDashboard {
     detail: string | null;
     createdAt: string;
   }>;
+}
+
+export interface IntelligenceDashboard {
+  stats: { total: number; open: number; critical: number; resolved: number; mapped: number; resolutionRate: number; avgResolutionHours: number | null };
+  byStatus: Array<{ label: string; count: number }>;
+  byCategory: Array<{ label: string; count: number }>;
+  byDistrict: Array<{ label: string; count: number }>;
+  points: Array<{
+    id: number; reference: string; title: string; status: string; category: string; categoryIcon: string | null; categoryColor: string | null;
+    province: string; district: string; sector: string | null; latitude: number; longitude: number;
+    priority: { score: number; status: string }; createdAt: string;
+  }>;
+  critical: Array<{ id: number; reference: string; title: string; category: string; district: string; status: string; priority: { score: number; status: string } }>;
+  predictions: Array<{ subject: string; outlook: string; confidence: number; basis: string }>;
+  recent: IntelligenceSearchResult[];
+}
+
+export interface IntelligenceSearchResult {
+  id: number; reference: string; title: string; status: string; urgency: string; category: string; district: string;
+  priority: { score: number; status: string }; createdAt: string; updatedAt: string;
 }
 
 export interface AdminUser {

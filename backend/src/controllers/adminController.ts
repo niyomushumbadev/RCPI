@@ -124,6 +124,42 @@ export async function setUserStatus(req: Request, res: Response) {
   return ok(res, null, `User ${isActive ? 'activated' : 'deactivated'}`);
 }
 
+// PUT /api/v1/admin/users/:id/role — system administrators can delegate a role.
+export async function setUserRole(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  const roleName = String(req.body?.roleName ?? '').trim();
+  const role = await prisma.role.findUnique({ where: { name: roleName } });
+  if (!role) return fail(res, 'Invalid role', 422);
+  if (id === req.user!.sub && role.name !== 'SYSTEM_ADMIN') return fail(res, 'You cannot remove your own system-admin role', 422);
+  const user = await prisma.user.update({ where: { id }, data: { roleId: role.id }, include: { role: true } });
+  await audit(req, { action: 'USER_ROLE_CHANGED', resourceType: 'USER', resourceId: String(id), detail: `${user.email} role=${role.name}` });
+  return ok(res, { user: { id: user.id, email: user.email, role: user.role.name } }, 'User role updated');
+}
+
+export async function listPermissions(_req: Request, res: Response) {
+  const [permissions, roles] = await Promise.all([
+    prisma.permission.findMany({ orderBy: { code: 'asc' } }),
+    prisma.role.findMany({ orderBy: { name: 'asc' }, include: { permissions: { include: { permission: true } } } }),
+  ]);
+  return ok(res, { permissions, roles: roles.map((role) => ({ id: role.id, name: role.name, description: role.description, permissions: role.permissions.map((item) => item.permission.code) })) });
+}
+
+export async function setRolePermissions(req: Request, res: Response) {
+  const roleId = Number(req.params.roleId);
+  const codes = Array.isArray(req.body?.permissionCodes) ? req.body.permissionCodes.map(String) : [];
+  const [role, permissions] = await Promise.all([
+    prisma.role.findUnique({ where: { id: roleId } }),
+    prisma.permission.findMany({ where: { code: { in: codes } } }),
+  ]);
+  if (!role) return fail(res, 'Role not found', 404);
+  await prisma.$transaction(async (tx) => {
+    await tx.rolePermission.deleteMany({ where: { roleId } });
+    if (permissions.length) await tx.rolePermission.createMany({ data: permissions.map((permission) => ({ roleId, permissionId: permission.id })) });
+  });
+  await audit(req, { action: 'ROLE_PERMISSIONS_CHANGED', resourceType: 'ROLE', resourceId: String(roleId), detail: `${role.name}: ${permissions.map((permission) => permission.code).join(', ')}` });
+  return ok(res, { role: role.name, permissionCodes: permissions.map((permission) => permission.code) }, 'Role permissions updated');
+}
+
 // GET /api/v1/admin/audit-logs?page=&action=&resourceType=
 export async function listAuditLogs(req: Request, res: Response) {
   const page = Math.max(1, parseInt(req.query.page as string ?? '1', 10));

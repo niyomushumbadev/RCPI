@@ -93,3 +93,16 @@ export async function listEvidenceTask3(req: Request, res: Response) {
     evidence: items.map((e) => ({ id: e.id, fileName: e.fileName, mimeType: e.mimeType, sizeBytes: e.sizeBytes, uploadedAt: e.createdAt })),
   });
 }
+
+export async function downloadEvidenceTask3(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  const evidenceId = Number(req.params.evidenceId);
+  const report = await prisma.report.findUnique({ where: { id }, select: { citizenId: true } });
+  const item = await prisma.evidence.findFirst({ where: { id: evidenceId, reportId: id } });
+  if (!report || !item) return notFound(res, 'Evidence not found');
+  const isStaff = ['OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'].includes(req.user!.role);
+  if (!isStaff && report.citizenId !== req.user!.sub) return fail(res, 'You do not have permission to download this evidence', 403);
+  const filePath = path.join(uploadDir, item.storedName);
+  if (!fs.existsSync(filePath)) return notFound(res, 'Evidence file is no longer available');
+  return res.download(filePath, item.fileName);
+}

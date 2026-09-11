@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { authApi, setAccessToken, onAuthChange } from '../lib/api';
 import type { User, Role } from '../types';
 
@@ -16,18 +16,21 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const sessionVersion = useRef(0);
 
   // Bootstrap session: try refresh on first load
   useEffect(() => {
     let cancelled = false;
+    const bootstrapVersion = sessionVersion.current;
     (async () => {
       try {
         const { user: me } = await authApi.me();
-        if (!cancelled) setUser(me);
+        if (!cancelled && sessionVersion.current === bootstrapVersion) setUser(me);
       } catch {
-        if (!cancelled) setUser(null);
+        if (!cancelled && sessionVersion.current === bootstrapVersion) setAccessToken(null);
+        if (!cancelled && sessionVersion.current === bootstrapVersion) setUser(null);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && sessionVersion.current === bootstrapVersion) setLoading(false);
       }
     })();
     return () => {
@@ -46,6 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string, rememberMe: boolean): Promise<User> => {
+    sessionVersion.current += 1;
+    setLoading(false);
     const { user: u, accessToken } = await authApi.login(email, password, rememberMe);
     setAccessToken(accessToken);
     setUser(u);
@@ -53,6 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(async (payload: Parameters<typeof authApi.register>[0]): Promise<User> => {
+    sessionVersion.current += 1;
+    setLoading(false);
     const { user: u, accessToken } = await authApi.register(payload);
     setAccessToken(accessToken);
     setUser(u);
@@ -60,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    sessionVersion.current += 1;
     try {
       await authApi.logout();
     } finally {

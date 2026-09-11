@@ -92,8 +92,31 @@ model Role {
   isSystem    Boolean         @default(false)
   mainRoleUsers User[]        @relation("mainRole")
   usersRoles  UserRole[]
+  permissions RolePermission[]
 
   @@map("roles")
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  code        String           @unique
+  name        String
+  description String?
+  roleLinks   RolePermission[]
+  createdAt   DateTime         @default(now())
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  grantedAt    DateTime   @default(now())
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
 }
 
 model User {
@@ -258,6 +281,8 @@ model Report {
   updates      ReportUpdate[]
   messages     ReportMessage[]
   feedback     Feedback?
+  aiJobs       AIJob[]
+  aiAnalyses   AIAnalysis[]
 
   @@index([citizenId])
   @@index([status])
@@ -333,6 +358,108 @@ model Feedback {
   report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@map("feedback")
+}
+
+// AI decision-support records. Predictions are advisory and never replace
+// the report workflow or an authorised human decision.
+model AIJob {
+  id           Int       @id @default(autoincrement())
+  reportId     Int
+  status       String    @default("PENDING")
+  attempts     Int       @default(0)
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  report   Report     @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  analysis AIAnalysis?
+
+  @@index([status, createdAt])
+  @@index([reportId])
+  @@map("ai_jobs")
+}
+
+model AIAnalysis {
+  id                Int      @id @default(autoincrement())
+  reportId          Int
+  jobId             Int      @unique
+  language          String?
+  overallConfidence Float?
+  status            String   @default("COMPLETED")
+  explanation       String?
+  imageQuality      String?
+  imageUsable       Boolean?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  report           Report              @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  job              AIJob                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  predictions      AIPrediction[]
+  duplicateMatches AIDuplicateMatch[]
+  recommendations  AIRecommendation[]
+  auditLogs        AIAuditLog[]
+
+  @@index([reportId, createdAt])
+  @@map("ai_analysis")
+}
+
+model AIPrediction {
+  id              Int      @id @default(autoincrement())
+  analysisId      Int
+  predictionType  String
+  predictionValue String
+  confidenceScore Float?
+  modelVersion    String
+  createdAt       DateTime @default(now())
+
+  analysis AIAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId, predictionType])
+  @@map("ai_predictions")
+}
+
+model AIDuplicateMatch {
+  id              Int      @id @default(autoincrement())
+  analysisId      Int
+  reportId        Int
+  matchedReportId Int
+  similarityScore Float
+  matchType       String
+  createdAt       DateTime @default(now())
+
+  analysis AIAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, matchedReportId])
+  @@map("ai_duplicate_matches")
+}
+
+model AIRecommendation {
+  id             Int      @id @default(autoincrement())
+  analysisId     Int
+  priority       String
+  department     String?
+  recommendation String
+  createdAt      DateTime @default(now())
+
+  analysis AIAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId])
+  @@map("ai_recommendations")
+}
+
+model AIAuditLog {
+  id         Int      @id @default(autoincrement())
+  analysisId Int
+  event      String
+  actorId    Int?
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  analysis AIAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId, createdAt])
+  @@map("ai_audit_logs")
 }
 
 // ═════════════════════════════════════════════════════════════

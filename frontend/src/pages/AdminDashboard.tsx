@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminApi } from '../lib/api';
 import type { AdminDashboard as AdminData } from '../types';
-import { PageHeader, Spinner, ErrorBox, StatCard } from '../components/ui';
+import { PageHeader, Spinner, DashboardError, StatCard } from '../components/ui';
 import { formatDateTime } from '../lib/format';
 
 export default function AdminDashboard() {
@@ -19,7 +19,7 @@ export default function AdminDashboard() {
   }, []);
 
   if (loading) return <Spinner />;
-  if (error) return <ErrorBox message={error} />;
+  if (error) return <DashboardError message={error} onRetry={() => window.location.reload()} />;
   if (!data) return null;
 
   return (
@@ -34,6 +34,8 @@ export default function AdminDashboard() {
               <Link to="/dashboard" className="btn-outline text-sm">Dashboard</Link>
               <Link to="/admin/users" className="btn-outline text-sm">Manage users</Link>
               <Link to="/admin/audit-logs" className="btn-outline text-sm">Audit logs</Link>
+              <Link to="/admin/management" className="btn-outline text-sm">System management</Link>
+              <Link to="/government/intelligence" className="btn-primary text-sm">GIS & intelligence</Link>
             </div>
           }
         />

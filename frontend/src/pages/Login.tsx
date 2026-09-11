@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import RwandaFlagLogo from '../components/RwandaFlagLogo';
@@ -7,7 +7,7 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: string } | null)?.from ?? '/dashboard';
+  const from = (location.state as { from?: string } | null)?.from ?? '/citizen/dashboard';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,6 +15,13 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if ((location.state as { reason?: string } | null)?.reason === 'session-expired') {
+      setError('Your session expired. Please sign in again to continue.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [location.state]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,8 +31,8 @@ export default function Login() {
       const loggedInUser = await login(email, password, rememberMe);
       const targetPath =
         loggedInUser.role === 'CITIZEN'
-          ? '/dashboard'
-          : loggedInUser.role === 'OFFICER'
+          ? '/citizen/dashboard'
+          : ['OFFICER', 'ANALYST'].includes(loggedInUser.role)
             ? '/workflow'
             : '/admin';
       navigate(from.startsWith('/login') || from.startsWith('/auth/') ? targetPath : from, { replace: true });
