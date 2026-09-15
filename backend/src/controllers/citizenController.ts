@@ -164,7 +164,7 @@ export async function getReports(req: Request, res: Response) {
 // POST /api/v1/citizen/reports
 export async function createReport(req: Request, res: Response) {
   const citizenId = req.user!.sub;
-  const { title, description, categoryId, urgency, provinceId, districtId, sectorId, cellId, latitude, longitude, locationDescription, isAnonymous } = req.body ?? {};
+  const { title, description, categoryId, urgency, provinceId, districtId, sectorId, cellId, latitude, longitude, locationDescription, isAnonymous, affectedPeople, vulnerableGroup } = req.body ?? {};
 
   if (!title || !description || !categoryId || !provinceId || !districtId) {
     return fail(res, 'Title, description, category, province and district are required', 422);
@@ -198,6 +198,8 @@ export async function createReport(req: Request, res: Response) {
       longitude: longitude ? String(longitude) : null,
       locationDescription: locationDescription ? String(locationDescription).slice(0, 300) : null,
       isAnonymous: Boolean(isAnonymous),
+      affectedPeople: affectedPeople !== undefined && affectedPeople !== null && affectedPeople !== '' ? Math.max(0, Number(affectedPeople) || 0) : null,
+      vulnerableGroup: Boolean(vulnerableGroup),
       statusHistory: {
         create: {
           toStatus: 'SUBMITTED',
@@ -209,7 +211,34 @@ export async function createReport(req: Request, res: Response) {
   });
 
   await audit(req, { action: 'REPORT_CREATED', resourceType: 'REPORT', resourceId: String(report.id), detail: reference });
-  await notify({ userId: citizenId, type: 'REPORT_RECEIVED', title: 'Report received', message: `Your report "${report.title}" has been received and is awaiting review.`, reportId: report.id });
+  await notify({ userId: citizenId, type: 'REPORT_SUBMITTED', title: 'Report submitted', message: `Your report ${reference} has been received. Tracking number: ${reference}.`, reportId: report.id });
+
+  // Notify the responsible government staff (district + sector officers of the
+  // report's district, per master spec §5 step "responsible officer is notified").
+  try {
+    const officers = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        districtId: Number(districtId),
+        role: { name: { in: ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN'] } },
+      },
+      select: { id: true },
+      take: 10,
+    });
+    const urgencyTag = urgency === 'HIGH' ? '⚠️ HIGH urgency' : 'New';
+    for (const officer of officers) {
+      await notify({
+        userId: officer.id,
+        type: urgency === 'HIGH' ? 'REPORT_ESCALATED' : 'REPORT_RECEIVED',
+        title: `${urgencyTag} report in ${district?.name ?? 'your district'}`,
+        message: `${category.name}: ${String(title).trim().slice(0, 80)} (ref ${reference}). Open the workflow queue to verify.`,
+        reportId: report.id,
+      });
+    }
+  } catch {
+    // officer notification is best-effort; citizen confirmation already sent
+  }
+
   await enqueueAIAnalysis(report.id);
 
   return ok(res, {
@@ -221,6 +250,37 @@ export async function createReport(req: Request, res: Response) {
       createdAt: report.createdAt,
     },
   }, 'Report submitted successfully. We will notify you when it is reviewed.', 201);
+}
+
+// PUT /api/v1/citizen/reports/:id — edit own report before verification (§7).
+export async function updateReport(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  const existing = await prisma.report.findUnique({ where: { id } });
+  if (!existing) return notFound(res, 'Report not found');
+  if (existing.citizenId !== req.user!.sub) return fail(res, 'You do not have permission to edit this report', 403);
+  if (!['SUBMITTED', 'AI_ANALYSIS', 'PENDING_VERIFICATION', 'DRAFT'].includes(existing.status)) {
+    return fail(res, `Reports with status ${existing.status} can no longer be edited by citizens`, 409);
+  }
+  const { title, description, sectorId, cellId, latitude, longitude, locationDescription, affectedPeople, vulnerableGroup } = req.body ?? {};
+  const updated = await prisma.report.update({
+    where: { id },
+    data: {
+      ...(title ? { title: String(title).trim().slice(0, 200) } : {}),
+      ...(description ? { description: String(description).trim() } : {}),
+      ...(sectorId !== undefined ? { sectorId: sectorId ? Number(sectorId) : null } : {}),
+      ...(cellId !== undefined ? { cellId: cellId ? Number(cellId) : null } : {}),
+      ...(latitude !== undefined ? { latitude: latitude ? String(latitude) : null } : {}),
+      ...(longitude !== undefined ? { longitude: longitude ? String(longitude) : null } : {}),
+      ...(locationDescription !== undefined ? { locationDescription: locationDescription ? String(locationDescription).slice(0, 300) : null } : {}),
+      ...(affectedPeople !== undefined ? { affectedPeople: affectedPeople === null || affectedPeople === '' ? null : Math.max(0, Number(affectedPeople) || 0) } : {}),
+      ...(vulnerableGroup !== undefined ? { vulnerableGroup: Boolean(vulnerableGroup) } : {}),
+    },
+  });
+  await prisma.reportStatusHistory.create({
+    data: { reportId: id, fromStatus: existing.status, toStatus: existing.status, note: 'Citizen edited report details', actorId: req.user!.sub, actorName: `${req.user!.firstName} ${req.user!.lastName}` },
+  });
+  await audit(req, { action: 'REPORT_UPDATED', resourceType: 'REPORT', resourceId: String(id) });
+  return ok(res, { report: { id: updated.id, reference: updated.reference, status: updated.status } }, 'Report updated');
 }
 
 // GET /api/v1/citizen/reports/:id
@@ -356,6 +416,28 @@ export async function requestReopen(req: Request, res: Response) {
       actorName: 'Citizen',
     },
   });
+  try {
+    await prisma.reportReopenRequest.create({
+      data: { reportId: report.id, reason: String(reason).trim().slice(0, 500), actorId: req.user!.sub, actorName: `${req.user!.firstName} ${req.user!.lastName}` },
+    });
+  } catch {
+    // companion record is additive; status change already recorded
+  }
+  // Alert district staff that a citizen is asking to reopen.
+  try {
+    if (report.districtId) {
+      const officers = await prisma.user.findMany({
+        where: { isActive: true, districtId: report.districtId, role: { name: { in: ['SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN'] } } },
+        select: { id: true },
+        take: 5,
+      });
+      for (const officer of officers) {
+        await notify({ userId: officer.id, type: 'REPORT_REOPENED', title: 'Reopen request', message: `Citizen asked to reopen ${report.reference}: ${String(reason).trim().slice(0, 100)}`, reportId: report.id });
+      }
+    }
+  } catch {
+    // best-effort
+  }
 
   await audit(req, { action: 'REPORT_REOPEN_REQUESTED', resourceType: 'REPORT', resourceId: String(report.id) });
   return ok(res, null, 'Reopening request submitted. Government staff will review it.', 201);

@@ -228,6 +228,40 @@ The Vite dev server proxies `/api/*` to the backend
 (`frontend/vite.config.ts`), so the browser only ever talks to
 `http://localhost:5173` and the refresh-token cookie stays first-party.
 
+## Project structure
+
+The codebase is organized around the R-CPI role hierarchy
+(Citizen → Cell → Sector → District → Province/City → National → Executive):
+
+```
+backend/
+  prisma/schema.prisma        # 25+ models: geography, users, reports, AI, audit
+  prisma/seed.ts              # Rwanda geography + demo users for all 11 roles
+  src/
+    index.ts / app.ts         # server entry, security, routing, /api/v1
+    routes/                   # authRoutes, citizenRoutes, workflowRoutes,
+                              # reportRoutes, intelligence.routes, ai.routes,
+                              # adminRoutes, supportRoutes
+    controllers/              # one controller per route group
+    services/                 # report lifecycle, status matrix, priority engine,
+                              # AI service (OpenAI → service → heuristic fallback),
+                              # notifications, audit
+    middleware/               # auth (JWT+RBAC), security (helmet, rate limit), validation
+frontend/
+  src/
+    pages/auth/               # login, register, forgot/reset password, verify
+    pages/public/             # landing, presentation, forbidden
+    pages/citizen/            # Level 1 — citizen portal (L1)
+    pages/workflow/           # Levels 2–7 — government report workflow
+    pages/intelligence/       # Levels 5–8 — GIS, AI dashboards, executive strategy
+    pages/admin/              # Levels 4–7 — administration
+    pages/community/          # shared community map & insights
+    components/ lib/ context/ # shell/UI, API client, auth
+scripts/
+  dev.js / setup.js           # run both servers; first-time setup
+  e2e-workflow-test.ts        # 37-check end-to-end workflow test (§22)
+```
+
 ---
 
 ## Quick start
@@ -263,11 +297,46 @@ At minimum, set:
 
 ### Demo accounts (also on the Login page)
 
-| Role    | Name             | Email                 | Password      |
-| ------- | ---------------- | --------------------- | ------------- |
-| Citizen | Aline Mukamana   | citizen@rcpi.gov.rw   | `Citizen@123` |
-| Officer | Jean Habimana    | officer@rcpi.gov.rw   | `Officer@123` |
-| Admin   | Grace Uwase      | admin@rcpi.gov.rw     | `Admin@123`   |
+| Role | Name             | Email                       | Password          |
+| ------ | ---------------- | --------------------------- | ----------------- |
+| Citizen | Aline Mukamana   | citizen@rcpi.gov.rw         | `Citizen@123`     |
+| Cell officer | Eric Cell Officer | cell@rcpi.gov.rw      | `Cell@12345`      |
+| Officer | Jean Habimana    | officer@rcpi.gov.rw         | `Officer@123`     |
+| Sector officer | Diane Sector Officer | sector@rcpi.gov.rw | `Sector@123`      |
+| District | Rebecca Niyonsenga | district-admin@rcpi.gov.rw | `District@123`  |
+| Province | Patrick Province Admin | province@rcpi.gov.rw  | `Province@123`    |
+| Kigali City | Sandrine City Admin | city@rcpi.gov.rw       | `CityAdmin@123`   |
+| National | Emmanuel Mugenzi | national-admin@rcpi.gov.rw  | `National@123`    |
+| Executive | Hon. Executive  | executive@rcpi.gov.rw       | `Executive@123`   |
+| System admin | Grace Uwase  | admin@rcpi.gov.rw           | `Admin@123`       |
+| Analyst | Claire Uwingabire | analyst@rcpi.gov.rw        | `Analyst@123`     |
+| Demo citizens (7) | Jean Bosco, Claudine, … | citizen2@ … citizen8@rcpi.gov.rw | `Citizen@123` |
+
+### Demo data
+
+First-time seeding creates a realistic demo dataset (clearly demo — not official
+statistics): 23 community problem reports across 8 districts (Kigali's 3,
+Huye, Musanze, Rubavu, Rusizi, Nyagatare) spanning the full lifecycle —
+SUBMITTED → AI analysis → VERIFIED → ASSIGNED → IN_PROGRESS → RESOLVED →
+CLOSED, plus ESCALATED, REJECTED and a reopen request — with status history,
+department assignments, deadlines, AI advisory records, citizen feedback and
+notifications. The public map, community insights, officer queues, district
+and executive dashboards all show data on first run. Geo-scoped roles see
+their own district (e.g. the officer sees Gasabo's reports); SYSTEM_ADMIN
+and EXECUTIVE see nationwide aggregates.
+
+> Re-seeding is safe: demo reports are only added when the reports table is empty.
+> To rebuild from scratch: `npx prisma db push --force-reset && npx tsx prisma/seed.ts`
+> (in `backend/`, ⚠️ wipes all data).
+
+### Testing
+
+```bash
+npm run test        # backend contract tests (status matrix, validation)
+npm run test:e2e    # 37-check citizen→officer→resolve→close→analytics E2E test
+                    # (requires the API running on :5000)
+npm run verify:demo # 29-check demo-data verification (map, queues, dashboards)
+```
 
 ### User access matrix
 

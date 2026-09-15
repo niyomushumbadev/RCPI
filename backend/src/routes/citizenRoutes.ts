@@ -7,7 +7,8 @@ const router = Router();
 // Authenticate all endpoints; citizen-owned data/actions are guarded individually.
 router.use(authenticate);
 const citizenOnly = requireRole('CITIZEN');
-const authenticatedRoles = requireRole('CITIZEN', 'OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST');
+const staffRoles = requireRole('CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN');
+const authenticatedRoles = requireRole('CITIZEN', 'CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST', 'EXECUTIVE');
 
 // Dashboard & profile
 router.get('/dashboard', citizenOnly, citizen.getDashboard);
@@ -18,6 +19,7 @@ router.put('/profile', citizenOnly, citizen.updateProfile);
 router.get('/reports', citizenOnly, citizen.getReports);
 router.post('/reports', citizenOnly, citizen.createReport);
 router.get('/reports/:id', citizenOnly, citizen.getReportDetails);
+router.put('/reports/:id', citizenOnly, citizen.updateReport);
 router.get('/reports/:id/timeline', citizenOnly, citizen.getReportTimeline);
 router.get('/reports/:id/messages', citizenOnly, citizen.getMessages);
 router.post('/reports/:id/messages', citizenOnly, citizen.sendMessage);

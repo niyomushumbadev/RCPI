@@ -184,3 +184,41 @@ export async function listAuditLogs(req: Request, res: Response) {
 
   return ok(res, { logs, pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } });
 }
+
+// GET /api/v1/admin/settings — system configuration (master spec §15).
+export async function listSettings(_req: Request, res: Response) {
+  const settings = await prisma.systemSetting.findMany({ orderBy: { key: 'asc' } });
+  const defaults: Record<string, string> = {
+    OPENAI_MODEL: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+    AI_ENABLED: process.env.OPENAI_API_KEY ? 'true' : 'false',
+    SLA_HOURS: '48',
+    DATA_RETENTION_DAYS: '1825',
+    MAINTENANCE_MODE: 'false',
+  };
+  const merged = Object.entries(defaults).map(([key, fallback]) => {
+    const stored = settings.find((s) => s.key === key);
+    return { key, value: stored?.value ?? fallback };
+  });
+  for (const s of settings) {
+    if (!merged.find((m) => m.key === s.key)) merged.push({ key: s.key, value: s.value ?? '' });
+  }
+  return ok(res, { settings: merged });
+}
+
+// PUT /api/v1/admin/settings — update system configuration (audited).
+export async function updateSettings(req: Request, res: Response) {
+  const { settings } = req.body ?? {};
+  if (!settings || typeof settings !== 'object') return fail(res, 'A settings object is required', 422);
+  const entries = Object.entries(settings as Record<string, unknown>).slice(0, 50);
+  for (const [key, value] of entries) {
+    const cleanKey = String(key).trim().slice(0, 80).toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+    if (!cleanKey) continue;
+    await prisma.systemSetting.upsert({
+      where: { key: cleanKey },
+      update: { value: String(value ?? '').slice(0, 2000), updatedBy: req.user!.sub },
+      create: { key: cleanKey, value: String(value ?? '').slice(0, 2000), updatedBy: req.user!.sub },
+    });
+  }
+  await audit(req, { action: 'SYSTEM_SETTINGS_UPDATED', resourceType: 'SYSTEM', detail: entries.map(([k]) => k).join(',').slice(0, 300) });
+  return ok(res, null, 'System settings updated');
+}

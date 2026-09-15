@@ -162,6 +162,52 @@ export async function login(req: Request, res: Response) {
   return ok(res, { user: publicUser(user), accessToken }, 'Login successful');
 }
 
+// POST /api/v1/auth/forgot-password — issue a single-use reset token.
+// Always returns success (no account enumeration). In this build the token
+// is returned in dev responses only; wire SMS/email later via notify channels.
+export async function forgotPassword(req: Request, res: Response) {
+  const { email } = req.body ?? {};
+  const emailNorm = String(email ?? '').toLowerCase().trim();
+  if (emailNorm) {
+    const user = await prisma.user.findUnique({ where: { email: emailNorm } });
+    if (user) {
+      const token = crypto.randomBytes(32).toString('hex');
+      await prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: hashToken(token),
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        },
+      });
+      await audit(req, { actorId: user.id, action: 'PASSWORD_RESET_REQUESTED', resourceType: 'USER', resourceId: String(user.id) });
+      if (env.isDev) {
+        return ok(res, { resetToken: token }, 'Password reset token created (development only)');
+      }
+    }
+  }
+  return ok(res, null, 'If the account exists, password reset instructions have been sent.');
+}
+
+// POST /api/v1/auth/reset-password — consume a reset token.
+export async function resetPassword(req: Request, res: Response) {
+  const { token, newPassword } = req.body ?? {};
+  if (!token || !newPassword || String(newPassword).length < 8) {
+    return fail(res, 'A valid token and a password of at least 8 characters are required', 422);
+  }
+  const stored = await prisma.passwordResetToken.findUnique({ where: { tokenHash: hashToken(String(token)) } });
+  if (!stored || stored.usedAt || stored.expiresAt < new Date()) {
+    return fail(res, 'This reset link is invalid or has expired', 400);
+  }
+  const passwordHash = await bcrypt.hash(String(newPassword), env.bcryptRounds);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: stored.userId }, data: { passwordHash, failedLoginCount: 0, lockedUntil: null } }),
+    prisma.passwordResetToken.update({ where: { id: stored.id }, data: { usedAt: new Date() } }),
+    prisma.refreshToken.updateMany({ where: { userId: stored.userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+  ]);
+  await audit(req, { actorId: stored.userId, action: 'PASSWORD_RESET_COMPLETED', resourceType: 'USER', resourceId: String(stored.userId) });
+  return ok(res, null, 'Password reset successfully. Please log in with your new password.');
+}
+
 // POST /api/v1/auth/refresh — rotate refresh token, return new access token
 export async function refresh(req: Request, res: Response) {
   const token = req.cookies?.[REFRESH_COOKIE];

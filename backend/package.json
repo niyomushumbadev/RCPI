@@ -10,6 +10,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "test": "tsx tests/report.task3.test.ts",
+    "test:e2e": "tsx ../scripts/e2e-workflow-test.ts",
     "prisma:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",

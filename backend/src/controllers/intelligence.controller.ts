@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { prisma } from '../config/db';
 import { ok } from '../utils/helpers';
 
-const OPEN_STATUSES = ['SUBMITTED', 'RECEIVED', 'UNDER_REVIEW', 'VERIFIED', 'ASSIGNED', 'IN_PROGRESS', 'ESCALATED', 'REOPEN_REQUESTED', 'REOPENED'];
+const OPEN_STATUSES = ['SUBMITTED', 'AI_ANALYSIS', 'PENDING_VERIFICATION', 'RECEIVED', 'UNDER_REVIEW', 'VERIFIED', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_CITIZEN', 'WAITING_DEPARTMENT', 'ESCALATED', 'REOPEN_REQUESTED', 'REOPENED'];
 
 function priorityFor(report: { urgency: string; status: string; createdAt: Date; latitude: unknown; longitude: unknown; aiPriorityScore: unknown; }) {
   const urgency = report.urgency === 'HIGH' ? 30 : report.urgency === 'MEDIUM' ? 18 : 8;
@@ -17,9 +17,16 @@ function priorityFor(report: { urgency: string; status: string; createdAt: Date;
 
 async function scopedReports(req: Request) {
   const role = req.user?.role;
-  if (role === 'DISTRICT_ADMIN' || role === 'OFFICER') {
-    const user = await prisma.user.findUnique({ where: { id: req.user!.sub }, select: { districtId: true } });
-    return user?.districtId ? { districtId: user.districtId } : { assignedOfficerId: req.user!.sub };
+  if (role === 'CELL_OFFICER' || role === 'SECTOR_OFFICER' || role === 'OFFICER' || role === 'DISTRICT_ADMIN') {
+    const user = await prisma.user.findUnique({ where: { id: req.user!.sub }, select: { districtId: true, sectorId: true } });
+    if (role === 'CELL_OFFICER' && user?.sectorId) {
+      const cells = await prisma.report.findMany({ where: {}, select: { id: true }, take: 1 });
+      void cells;
+    }
+    if ((role === 'CELL_OFFICER' || role === 'SECTOR_OFFICER' || role === 'OFFICER' || role === 'DISTRICT_ADMIN') && user?.districtId) {
+      return { districtId: user.districtId };
+    }
+    return { assignedOfficerId: req.user!.sub };
   }
   return {};
 }
@@ -88,6 +95,58 @@ export async function searchIntelligenceReports(req: Request, res: Response) {
   if (q) where.OR = [{ reference: { contains: q } }, { title: { contains: q } }, { description: { contains: q } }];
   const reports = await prisma.report.findMany({ where, take: 100, orderBy: { updatedAt: 'desc' }, include: { category: true, district: true } });
   return ok(res, { reports: reports.map((report) => ({ id: report.id, reference: report.reference, title: report.title, status: report.status, urgency: report.urgency, category: report.category.name, district: report.district.name, priority: priorityFor(report), createdAt: report.createdAt, updatedAt: report.updatedAt })) });
+}
+
+/** GET /api/v1/intelligence/executive — Level 8 strategic dashboard (aggregated only). */
+export async function getExecutiveDashboard(_req: Request, res: Response) {
+  const reports = await prisma.report.findMany({
+    select: { id: true, status: true, urgency: true, priority: true, categoryId: true, districtId: true, provinceId: true, createdAt: true, updatedAt: true, resolvedAt: true },
+  });
+  const byStatus = new Map<string, number>();
+  const byCategory = new Map<number, number>();
+  const byDistrict = new Map<number, number>();
+  const byProvince = new Map<number, number>();
+  for (const r of reports) {
+    byStatus.set(r.status, (byStatus.get(r.status) ?? 0) + 1);
+    byCategory.set(r.categoryId, (byCategory.get(r.categoryId) ?? 0) + 1);
+    byDistrict.set(r.districtId, (byDistrict.get(r.districtId) ?? 0) + 1);
+    byProvince.set(r.provinceId, (byProvince.get(r.provinceId) ?? 0) + 1);
+  }
+  const [categories, districts, provinces] = await Promise.all([
+    prisma.category.findMany({ select: { id: true, name: true } }),
+    prisma.district.findMany({ select: { id: true, name: true } }),
+    prisma.province.findMany({ select: { id: true, name: true } }),
+  ]);
+  const nameOf = (list: Array<{ id: number; name: string }>, id: number) => list.find((x) => x.id === id)?.name ?? `#${id}`;
+  const resolved = reports.filter((r) => ['RESOLVED', 'PENDING_CLOSURE', 'CLOSED'].includes(r.status)).length;
+  const open = reports.filter((r) => OPEN_STATUSES.includes(r.status)).length;
+  const overdue = reports.filter((r) => OPEN_STATUSES.includes(r.status) && Date.now() - r.updatedAt.getTime() > 48 * 3600_000).length;
+  const critical = reports.filter((r) => r.priority === 'CRITICAL' || r.urgency === 'HIGH').length;
+  const hours = reports.filter((r) => r.resolvedAt).map((r) => (r.resolvedAt!.getTime() - r.createdAt.getTime()) / 3600000);
+  const top = (m: Map<number, number>, list: Array<{ id: number; name: string }>) =>
+    [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([id, count]) => ({ label: nameOf(list, id), count }));
+  return ok(res, {
+    demo: true,
+    notice: 'Aggregated demo intelligence. No personal citizen details are exposed on this dashboard.',
+    stats: {
+      total: reports.length,
+      open,
+      resolved,
+      overdue,
+      critical,
+      resolutionRate: reports.length ? Math.round((resolved / reports.length) * 100) : 0,
+      avgResolutionHours: hours.length ? Math.round((hours.reduce((a, b) => a + b, 0) / hours.length) * 10) / 10 : null,
+    },
+    byStatus: [...byStatus.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count),
+    byCategory: top(byCategory, categories),
+    byDistrict: top(byDistrict, districts),
+    byProvince: top(byProvince, provinces),
+    recommendations: [
+      'Direct rapid-response resources to districts with the highest open critical load.',
+      'Review recurring categories in the top-3 list for preventive maintenance planning.',
+      'Track overdue clusters weekly; escalate reports older than the 48h service standard.',
+    ],
+  });
 }
 
 export async function exportIntelligenceCsv(req: Request, res: Response) {

@@ -2,12 +2,38 @@
 // Shared types mirroring the R-CPI API responses
 // ─────────────────────────────────────────────────────────────
 
-export type Role = 'CITIZEN' | 'OFFICER' | 'DISTRICT_ADMIN' | 'NATIONAL_ADMIN' | 'SYSTEM_ADMIN' | 'ANALYST';
+export type Role =
+  | 'CITIZEN'
+  | 'CELL_OFFICER'
+  | 'SECTOR_OFFICER'
+  | 'OFFICER'
+  | 'DISTRICT_ADMIN'
+  | 'PROVINCE_ADMIN'
+  | 'CITY_ADMIN'
+  | 'NATIONAL_ADMIN'
+  | 'EXECUTIVE'
+  | 'SYSTEM_ADMIN'
+  | 'ANALYST';
+
+export const ROLE_LEVELS: Record<Role, number> = {
+  CITIZEN: 1,
+  CELL_OFFICER: 2,
+  SECTOR_OFFICER: 3,
+  OFFICER: 3,
+  DISTRICT_ADMIN: 4,
+  PROVINCE_ADMIN: 5,
+  CITY_ADMIN: 6,
+  NATIONAL_ADMIN: 7,
+  EXECUTIVE: 8,
+  SYSTEM_ADMIN: 99,
+  ANALYST: 7,
+};
 
 export const REPORT_STATUSES = [
-  'SUBMITTED', 'RECEIVED', 'UNDER_REVIEW', 'VERIFIED', 'REJECTED',
-  'ASSIGNED', 'IN_PROGRESS', 'ESCALATED', 'RESOLVED', 'CLOSED',
-  'REOPEN_REQUESTED', 'REOPENED',
+  'DRAFT', 'SUBMITTED', 'AI_ANALYSIS', 'PENDING_VERIFICATION', 'VERIFIED', 'REJECTED',
+  'ASSIGNED', 'IN_PROGRESS', 'WAITING_CITIZEN', 'WAITING_DEPARTMENT', 'ESCALATED',
+  'RESOLVED', 'PENDING_CLOSURE', 'CLOSED', 'REOPENED', 'ARCHIVED',
+  'RECEIVED', 'UNDER_REVIEW', 'REOPEN_REQUESTED',
 ] as const;
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
@@ -344,6 +370,26 @@ export interface IntelligenceDashboard {
   critical: Array<{ id: number; reference: string; title: string; category: string; district: string; status: string; priority: { score: number; status: string } }>;
   predictions: Array<{ subject: string; outlook: string; confidence: number; basis: string }>;
   recent: IntelligenceSearchResult[];
+}
+
+export interface ExecutiveDashboard {
+  demo: boolean;
+  notice: string;
+  stats: { total: number; open: number; resolved: number; overdue: number; critical: number; resolutionRate: number; avgResolutionHours: number | null };
+  byStatus: Array<{ label: string; count: number }>;
+  byCategory: Array<{ label: string; count: number }>;
+  byDistrict: Array<{ label: string; count: number }>;
+  byProvince: Array<{ label: string; count: number }>;
+  recommendations: string[];
+}
+
+export interface PriorityInfo {
+  score: number;
+  level: string;
+  computedLevel: string;
+  officerOverride: string | null;
+  overrideReason: string | null;
+  reasons: string[];
 }
 
 export interface IntelligenceSearchResult {

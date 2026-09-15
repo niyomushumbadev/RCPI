@@ -201,6 +201,12 @@ export const authApi = {
 
   logout: () => request<null>('/auth/logout', { method: 'POST', auth: false }),
 
+  forgotPassword: (email: string) =>
+    request<{ resetToken?: string }>('/auth/forgot-password', { method: 'POST', body: { email }, auth: false }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    request<null>('/auth/reset-password', { method: 'POST', body: { token, newPassword }, auth: false }),
+
   me: () => request<{ user: User }>('/auth/me'),
 
   changePassword: (currentPassword: string, newPassword: string) =>
@@ -229,6 +235,14 @@ export const aiApi = {
     request<{ job: AIJob | null; analysis: AIAnalysis | null }>(`/ai/reports/${reportId}`),
   retryReportAnalysis: (reportId: number) =>
     request<{ job: AIJob }>(`/ai/reports/${reportId}/retry`, { method: 'POST' }),
+  reviewAnalysis: (reportId: number) =>
+    request<{ reviewed: boolean }>(`/ai/reports/${reportId}/review`, { method: 'POST' }),
+  priority: (reportId: number) =>
+    request<{ priority: import('../types').PriorityInfo }>(`/ai/reports/${reportId}/priority`),
+  setPriority: (reportId: number, priority: string, reason: string) =>
+    request<{ priority: string; reason: string | null }>(`/ai/reports/${reportId}/priority`, { method: 'PUT', body: { priority, reason } }),
+  assist: (payload: { task: string; text: string; targetLanguage?: string; reportId?: number }) =>
+    request<{ task: string; result: string; model: string; confidence: number; reviewed: boolean; hint: string }>('/ai/assist', { method: 'POST', body: payload }),
 };
 
 // ─── Notifications ───
@@ -244,6 +258,23 @@ export const notificationApi = {
 
 export const citizenApi = {
   dashboard: () => request<CitizenDashboard>('/citizen/dashboard'),
+
+  /** Query endpoint: server-side filters (status, category, district, dates, search) + sort. */
+  queryReports: (query: Record<string, string | number | undefined>) =>
+    request<{ reports: ReportListItem[]; pagination: Pagination }>('/reports/query', { query }),
+
+  /** Real DB-backed statistics used by dashboards and exports. */
+  statistics: () =>
+    request<{
+      total: number;
+      byStatus: Array<{ status: string; count: number }>;
+      byCategory: Array<{ categoryId: number; categoryName: string | null; count: number }>;
+      byDistrict: Array<{ districtId: number; districtName: string | null; count: number }>;
+      rejected: number;
+      verified: number;
+      reopened: number;
+      avgResolutionHours: number | null;
+    }>('/reports/statistics'),
 
   profile: () =>
     request<{
@@ -293,7 +324,7 @@ export const citizenApi = {
     request<null>(`/citizen/reports/${id}/reopen`, { method: 'POST', body: { reason } }),
 
   // Task 3 §13 — citizen edit of own eligible report (server enforces eligibility).
-  updateReport: (id: number | string, payload: { title?: string; description?: string; sectorId?: number | null; cellId?: number | null; latitude?: number | null; longitude?: number | null; locationDescription?: string | null }) =>
+  updateReport: (id: number | string, payload: { title?: string; description?: string; sectorId?: number | null; cellId?: number | null; latitude?: number | null; longitude?: number | null; locationDescription?: string | null; affectedPeople?: number | null; vulnerableGroup?: boolean }) =>
     request<{ report: { id: number; reference: string; status: string } }>(`/citizen/reports/${id}`, { method: 'PUT', body: payload }),
 
   activity: () =>
@@ -333,6 +364,8 @@ export interface CreateReportInput {
   longitude?: number;
   locationDescription?: string;
   isAnonymous?: boolean;
+  affectedPeople?: number | null;
+  vulnerableGroup?: boolean;
 }
 
 export const createReport = (input: CreateReportInput) =>
@@ -362,10 +395,23 @@ export const workflowApi = {
 
   replyMessage: (id: number | string, message: string) =>
     request<null>(`/workflow/reports/${id}/messages`, { method: 'POST', body: { message } }),
+
+  setDeadline: (id: number | string, deadline: string, reason?: string) =>
+    request<{ deadline: string }>(`/workflow/reports/${id}/deadline`, { method: 'POST', body: { deadline, reason } }),
+
+  internalNote: (id: number | string, note: string) =>
+    request<null>(`/workflow/reports/${id}/internal-note`, { method: 'POST', body: { note } }),
+
+  linkRelated: (id: number | string, relatedReportId: number, relationType: string, note?: string) =>
+    request<null>(`/workflow/reports/${id}/related`, { method: 'POST', body: { relatedReportId, relationType, note } }),
+
+  reopenRequests: () =>
+    request<{ requests: Array<{ id: number; reportId: number; reason: string; status: string; actorName: string | null; createdAt: string; report: { id: number; reference: string; title: string; status: string } | null }> }>('/workflow/reopen-requests'),
 };
 
 export const intelligenceApi = {
   dashboard: () => request<IntelligenceDashboard>('/intelligence/dashboard'),
+  executive: () => request<import('../types').ExecutiveDashboard>('/intelligence/executive'),
   search: (query: { q?: string; status?: string; districtId?: number; categoryId?: number }) =>
     request<{ reports: IntelligenceSearchResult[] }>('/intelligence/reports/search', { query }),
 };
@@ -421,4 +467,9 @@ export const adminApi = {
     districtId?: number;
     expiresAt?: string;
   }) => request<{ alert: CommunityAlert }>('/alerts', { method: 'POST', body: payload }),
+
+  settings: () => request<{ settings: Array<{ key: string; value: string }> }>('/admin/settings'),
+
+  updateSettings: (settings: Record<string, string>) =>
+    request<null>('/admin/settings', { method: 'PUT', body: { settings } }),
 };

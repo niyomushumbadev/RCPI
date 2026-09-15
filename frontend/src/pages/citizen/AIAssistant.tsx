@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { aiApi, citizenApi } from '../../lib/api';
-import { PageHeader, Spinner, ErrorBox } from '../../components/ui';
 import type { AIAnalysis, ReportListItem } from '../../types';
 import { getLanguage } from '../../translations';
+import { PageHeader, Spinner, ErrorBox } from '../../components/ui';
 
 interface ChatItem { id: number; from: 'citizen' | 'assistant'; text: string }
 

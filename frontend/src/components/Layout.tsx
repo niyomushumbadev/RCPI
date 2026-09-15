@@ -6,6 +6,8 @@ import type { Notification } from '../types';
 import RwandaFlagLogo from './RwandaFlagLogo';
 import { getLanguage, setLanguage, type Language } from '../translations';
 
+const GOV_HOME_ROLES = ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'ANALYST'];
+
 interface NavItem {
   to: string;
   label: string;
@@ -13,23 +15,42 @@ interface NavItem {
   roles?: string[];
 }
 
+const ALL_ROLES = ['CITIZEN', 'CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST', 'EXECUTIVE'];
+
+// Navigation mirrors the R-CPI hierarchy (master spec §3):
+//   L1 CITIZEN → L2 CELL → L3 SECTOR → L4 DISTRICT → L5 PROVINCE
+//   → L6 CITY → L7 NATIONAL → L8 EXECUTIVE (+ SYSTEM_ADMIN, ANALYST)
 const NAV: NavItem[] = [
-  { to: '/dashboard', label: 'Dashboard', icon: '🏠', roles: ['CITIZEN'] },
-  { to: '/workflow', label: 'Reports Queue', icon: '📥', roles: ['OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
-  { to: '/government/intelligence', label: 'GIS & Intelligence', icon: '🗺️', roles: ['OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
-  { to: '/government/ai', label: 'AI Dashboard', icon: '🤖', roles: ['OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
-  { to: '/admin', label: 'Administration', icon: '⚙️', roles: ['DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
+  // ── Level 1: Citizen portal ──
+  { to: '/citizen/dashboard', label: 'Dashboard', icon: '🏠', roles: ['CITIZEN'] },
   { to: '/citizen/report/create', label: 'Report a Problem', icon: '📝', roles: ['CITIZEN'] },
   { to: '/citizen/reports', label: 'My Reports', icon: '📋', roles: ['CITIZEN'] },
   { to: '/citizen/assistant', label: 'AI Assistant', icon: '🤖', roles: ['CITIZEN'] },
-  { to: '/notifications', label: 'Notifications', icon: '🔔', roles: ['CITIZEN', 'OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
-  { to: '/profile', label: 'Profile', icon: '👤', roles: ['CITIZEN'] },
+  { to: '/citizen/profile', label: 'Profile', icon: '👤', roles: ['CITIZEN'] },
   { to: '/citizen/help', label: 'Help', icon: '❓', roles: ['CITIZEN'] },
-  { to: '/map', label: 'Community Map', icon: '🗺️', roles: ['CITIZEN', 'OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
-  { to: '/community', label: 'Community', icon: '🌍', roles: ['CITIZEN', 'OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
-  { to: '/admin/users', label: 'Manage users', icon: '👥', roles: ['DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
-  { to: '/admin/audit-logs', label: 'Audit logs', icon: '🗂️', roles: ['DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
-  { to: '/admin/management', label: 'System management', icon: '🛠️', roles: ['NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
+
+  // ── Shared: community & notifications (all levels) ──
+  { to: '/map', label: 'Community Map', icon: '🗺️', roles: ALL_ROLES },
+  { to: '/community', label: 'Community', icon: '🌍', roles: ALL_ROLES },
+  { to: '/notifications', label: 'Notifications', icon: '🔔', roles: ALL_ROLES },
+
+  // ── Levels 2-7: Government workflow ──
+  { to: '/workflow', label: 'Workflow Dashboard', icon: '📥', roles: ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
+  { to: '/workflow/reports', label: 'Reports Queue', icon: '📋', roles: ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
+
+  // ── Levels 5-8: Intelligence & strategy ──
+  { to: '/government/intelligence', label: 'GIS & Intelligence', icon: '🛰️', roles: ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST', 'EXECUTIVE'] },
+  { to: '/government/ai', label: 'AI Dashboard', icon: '🤖', roles: ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
+  { to: '/executive', label: 'Executive Strategy', icon: '🏛️', roles: ['NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'EXECUTIVE', 'ANALYST'] },
+
+  // ── Levels 4-7: Administration ──
+  { to: '/admin', label: 'Administration', icon: '⚙️', roles: ['DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
+  { to: '/admin/users', label: 'Manage Users', icon: '👥', roles: ['DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
+  { to: '/admin/audit-logs', label: 'Audit Logs', icon: '🗂️', roles: ['DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
+  { to: '/admin/management', label: 'System Management', icon: '🛠️', roles: ['NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
+
+  // ── Public transparency ──
+  { to: '/presentation', label: 'Presentation', icon: '📊', roles: ALL_ROLES },
 ];
 
 export default function Layout() {
@@ -83,13 +104,10 @@ export default function Layout() {
 
   const visibleNav = NAV.filter((item) => {
     if (!user) return false;
-    if (user.role === 'CITIZEN') {
-      return item.roles?.includes('CITIZEN') ?? false;
-    }
-    return !item.roles || item.roles.includes(user.role);
+    return item.roles?.includes(user.role) ?? false;
   });
 
-  const homePath = user?.role === 'CITIZEN' ? '/citizen/dashboard' : '/workflow';
+  const homePath = user?.role === 'CITIZEN' ? '/citizen/dashboard' : user?.role === 'EXECUTIVE' ? '/executive' : GOV_HOME_ROLES.includes(user?.role ?? '') ? '/workflow' : '/admin';
 
   return (
     <div className="dashboard-shell min-h-screen bg-slate-100">

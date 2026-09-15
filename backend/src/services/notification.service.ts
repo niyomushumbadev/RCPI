@@ -1,6 +1,7 @@
 import { prisma } from '../config/db';
 
 export type NotificationType =
+  | 'REPORT_SUBMITTED'
   | 'REPORT_RECEIVED'
   | 'REPORT_VERIFIED'
   | 'REPORT_REJECTED'
@@ -9,6 +10,11 @@ export type NotificationType =
   | 'REPORT_ESCALATED'
   | 'REPORT_RESOLVED'
   | 'REPORT_REOPENED'
+  | 'REPORT_CLOSED'
+  | 'INFO_REQUESTED'
+  | 'DEADLINE_APPROACHING'
+  | 'REPORT_OVERDUE'
+  | 'FEEDBACK_REQUEST'
   | 'GOVERNMENT_MESSAGE'
   | 'COMMUNITY_ALERT'
   | 'SECURITY_NEW_LOGIN'
