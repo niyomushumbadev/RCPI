@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { RequireAuth } from './components/RequireAuth';
 import { useAuth } from './context/AuthContext';
@@ -69,6 +69,18 @@ function DashboardEntry() {
   return <Navigate to="/admin" replace />;
 }
 
+// Shared report-detail entry: citizens get the citizen view, staff get the
+// workflow view. Legacy links like /reports/:id (old notifications) land here
+// instead of 403-ing on a role-specific route.
+function ReportEntry() {
+  const { id } = useParams();
+  const { user } = useAuth();
+  if (!user || !id) return <Navigate to="/login" replace />;
+  return user.role === 'CITIZEN'
+    ? <Navigate to={`/citizen/reports/${id}`} replace />
+    : <Navigate to={`/workflow/reports/${id}`} replace />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -79,6 +91,7 @@ export default function App() {
             {/* ── Public ── */}
             <Route path="/" element={<Landing />} />
             <Route path="/forbidden" element={<RequireAuth roles={AUTHENTICATED_ROLES}><ForbiddenPage /></RequireAuth>} />
+            <Route path="/help" element={<HelpPage />} />
 
             {/* ── Auth ── */}
             <Route path="/login" element={<Login />} />
@@ -101,6 +114,7 @@ export default function App() {
               }
             >
               <Route path="/dashboard" element={<DashboardEntry />} />
+              <Route path="/reports/:id" element={<RequireAuth roles={AUTHENTICATED_ROLES}><ReportEntry /></RequireAuth>} />
 
               {/* Level 1 — Citizen portal */}
               <Route path="/citizen/dashboard" element={<RequireAuth roles={['CITIZEN']}><CitizenDashboard /></RequireAuth>} />
@@ -111,7 +125,7 @@ export default function App() {
               <Route path="/citizen/profile" element={<RequireAuth roles={['CITIZEN']}><Profile /></RequireAuth>} />
               <Route path="/citizen/settings" element={<RequireAuth roles={['CITIZEN']}><Profile /></RequireAuth>} />
               <Route path="/citizen/assistant" element={<RequireAuth roles={['CITIZEN']}><AIAssistant /></RequireAuth>} />
-              <Route path="/citizen/help" element={<RequireAuth roles={['CITIZEN']}><HelpPage /></RequireAuth>} />
+              <Route path="/citizen/help" element={<HelpPage />} />
               <Route path="/citizen/map" element={<RequireAuth roles={['CITIZEN']}><CommunityMap /></RequireAuth>} />
               <Route path="/citizen/nearby" element={<RequireAuth roles={['CITIZEN']}><CommunityMap /></RequireAuth>} />
               <Route path="/citizen/community-insights" element={<RequireAuth roles={['CITIZEN']}><Community /></RequireAuth>} />
@@ -132,7 +146,7 @@ export default function App() {
               {/* Levels 5-8 — Intelligence & decision support */}
               <Route path="/government/intelligence" element={<RequireAuth roles={GOV_ROLES}><GovernmentIntelligence /></RequireAuth>} />
               <Route path="/government/ai" element={<RequireAuth roles={GOV_ROLES}><GovernmentAIDashboard /></RequireAuth>} />
-              <Route path="/ai/reports/:id" element={<RequireAuth roles={GOV_ROLES}><AIReportAnalysis /></RequireAuth>} />
+              <Route path="/ai/reports/:id" element={<RequireAuth roles={AUTHENTICATED_ROLES}><AIReportAnalysis /></RequireAuth>} />
               <Route path="/executive" element={<RequireAuth roles={EXEC_ROLES}><ExecutiveDashboard /></RequireAuth>} />
 
               {/* Levels 4-7 — Administration */}

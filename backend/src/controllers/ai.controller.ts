@@ -15,7 +15,10 @@ async function canViewReport(req: Request, reportId: number) {
     if (user?.districtId && report.districtId !== user.districtId) return { report, allowed: false };
     return { report, allowed: true };
   }
-  if (req.user?.role === 'EXECUTIVE') return { report, allowed: false };
+  if (req.user?.role === 'EXECUTIVE') {
+    // Executive sees aggregated intelligence only — no object-level report access.
+    return { report, allowed: false };
+  }
   return { report, allowed: true };
 }
 

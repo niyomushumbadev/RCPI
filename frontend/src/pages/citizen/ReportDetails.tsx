@@ -5,6 +5,7 @@ import type { AIAnalysis, ChatMessage, ReportDetail as ReportData } from '../../
 import { StatusBadge, UrgencyBadge, formatBytes, formatDateTime, timeAgo } from '../../lib/format';
 import { Icon } from '../../components/icons';
 import { Spinner, ErrorBox } from '../../components/ui';
+import ReportMiniMap from '../../components/ReportMiniMap';
 import { useAuth } from '../../context/AuthContext';
 
 /** Citizen view of a single report — own-report only (server enforces). */
@@ -114,6 +115,9 @@ export default function ReportDetail() {
   if (!report) return null;
 
   const canReopen = ['RESOLVED', 'CLOSED'].includes(report.status) && !isOfficer;
+  const lat = report.location.latitude != null ? Number(report.location.latitude) : null;
+  const lng = report.location.longitude != null ? Number(report.location.longitude) : null;
+  const hasCoords = lat != null && lng != null && !Number.isNaN(lat) && !Number.isNaN(lng);
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -191,6 +195,17 @@ export default function ReportDetail() {
             </div>
           )}
         </dl>
+
+        {hasCoords && (
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-slate-700"><i className="fa-solid fa-location-dot" aria-hidden="true" /> Location on map</p>
+              <Link to={`/map?reportId=${report.id}`} className="text-sm font-semibold text-rwanda-blue hover:underline">Open full map →</Link>
+            </div>
+            <ReportMiniMap latitude={lat as number} longitude={lng as number} title={report.title} reference={report.reference} />
+            <p className="mt-2 text-xs text-slate-400">{lat?.toFixed(5)}, {lng?.toFixed(5)}</p>
+          </div>
+        )}
 
         {report.evidence.length > 0 && (
           <div className="mt-4 border-t border-slate-100 pt-4">

@@ -118,6 +118,8 @@ export default function WorkflowReportDetail() {
 
   const needsDepartment = targetStatus === 'ASSIGNED';
   const canAct = user?.role !== 'ANALYST' && user?.role !== 'EXECUTIVE' && user?.role !== 'CITIZEN';
+  // Executives get aggregated intelligence only — the backend denies object-level AI analysis.
+  const canViewAI = user?.role !== 'EXECUTIVE';
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -173,6 +175,12 @@ export default function WorkflowReportDetail() {
                 : '—'}
             </dd>
           </div>
+          {report.location.latitude != null && report.location.longitude != null && (
+            <div className="flex gap-2">
+              <dt className="text-slate-400">Map:</dt>
+              <dd><Link to={`/map?reportId=${report.id}`} className="text-sm font-semibold text-rwanda-blue hover:underline">View location on community map →</Link></dd>
+            </div>
+          )}
           <div className="flex gap-2">
             <dt className="text-slate-400">Department:</dt>
             <dd className="text-slate-700">{report.department ?? 'Not assigned'}</dd>
@@ -303,7 +311,7 @@ export default function WorkflowReportDetail() {
                 <span>{aiMsg.replace(/^[✔✖]\s*/, '')}</span>
               </p>
             )}
-            <Link to={`/ai/reports/${id}`} className="mt-2 inline-block text-sm font-semibold text-brand-primary hover:underline">Open full AI analysis</Link>
+            {canViewAI && <Link to={`/ai/reports/${id}`} className="mt-2 inline-block text-sm font-semibold text-brand-primary hover:underline">Open full AI analysis</Link>}
           </div>
 
           {/* Public update */}

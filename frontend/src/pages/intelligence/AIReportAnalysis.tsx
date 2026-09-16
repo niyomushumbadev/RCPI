@@ -2,12 +2,16 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { aiApi } from '../../lib/api';
 import type { AIAnalysis, AIJob } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 
 const confidence = (value: number | null) => value === null ? 'Unavailable' : `${Math.round(value * 100)}% confidence`;
 
 export default function AIReportAnalysis() {
   const { id } = useParams();
   const reportId = Number(id);
+  const { user } = useAuth();
+  // Only government staff may retry analyses or confirm review (backend enforces too).
+  const canAct = !!user && user.role !== 'CITIZEN';
   const [job, setJob] = useState<AIJob | null>(null);
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [error, setError] = useState('');
@@ -56,7 +60,7 @@ export default function AIReportAnalysis() {
           <h2 className="text-lg font-semibold text-slate-900">AI analysis {job.status.toLowerCase()}</h2>
           <p className="mt-2 text-sm text-slate-600">The report is available while the intelligence service processes its text, location and evidence.</p>
           {job.status === 'FAILED' && <p className="mt-3 text-sm text-red-700">{job.errorMessage ?? 'Analysis failed.'}</p>}
-          {['PENDING', 'PROCESSING', 'RETRYING', 'FAILED'].includes(job.status) && (
+          {['PENDING', 'PROCESSING', 'RETRYING', 'FAILED'].includes(job.status) && canAct && (
             <button className="btn-outline mt-4" onClick={() => void aiApi.retryReportAnalysis(reportId).then(() => void load())}>Retry analysis</button>
           )}
         </section>
@@ -82,7 +86,7 @@ export default function AIReportAnalysis() {
               {analysis.recommendations.length ? analysis.recommendations.map((item, index) => <div className="mt-3" key={`${item.recommendation}-${index}`}><p className="text-sm font-semibold text-slate-800">{item.priority}{item.department ? ` - ${item.department}` : ''}</p><p className="text-sm text-slate-600">{item.recommendation}</p></div>) : <p className="mt-3 text-sm text-slate-500">No recommendation was returned.</p>}
             </article>
           </section>
-          {analysis.explanation && <section className="gov-panel p-6"><h2 className="text-lg font-semibold text-slate-900">Why this result?</h2><p className="mt-2 text-sm leading-6 text-slate-700">{analysis.explanation}</p><p className="mt-2 text-xs text-slate-500">Model: heuristic/OpenAI (see backend logs) · human review required before any official decision. <button className="font-semibold text-rwanda-blue underline" onClick={() => void aiApi.reviewAnalysis(reportId).then(() => void load())}>Mark as reviewed</button></p></section>}
+          {analysis.explanation && <section className="gov-panel p-6"><h2 className="text-lg font-semibold text-slate-900">Why this result?</h2><p className="mt-2 text-sm leading-6 text-slate-700">{analysis.explanation}</p><p className="mt-2 text-xs text-slate-500">Model: heuristic/OpenAI (see backend logs) · human review required before any official decision. {canAct && <button className="font-semibold text-rwanda-blue underline" onClick={() => void aiApi.reviewAnalysis(reportId).then(() => void load())}>Mark as reviewed</button>}</p></section>}
         </>
       )}
     </main>

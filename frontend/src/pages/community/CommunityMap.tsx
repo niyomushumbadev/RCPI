@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, GeoJSON, useMap } from 'react-leaflet';
 import type { GeoJsonObject } from 'geojson';
-import { useNavigate } from 'react-router-dom';
+import type { CircleMarker as LeafletCircleMarker } from 'leaflet';
+import type { LatLngExpression } from 'leaflet';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 import { citizenApi } from '../../lib/api';
 import type { MapProblem, NearbyProblem } from '../../types';
@@ -20,8 +22,18 @@ const STATUS_COLOR: Record<string, string> = {
   CLOSED: '#94a3b8',
 };
 
+// Re-centers the map whenever the target coordinates change (deep links).
+function FlyTo({ target }: { target: LatLngExpression | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.flyTo(target, 15, { duration: 1.2 });
+  }, [map, target]);
+  return null;
+}
+
 export default function CommunityMap() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [problems, setProblems] = useState<MapProblem[]>([]);
   const [nearby, setNearby] = useState<NearbyProblem[] | null>(null);
   const [locating, setLocating] = useState(false);
@@ -31,6 +43,13 @@ export default function CommunityMap() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
+
+  // Deep link: /map?reportId=123 opens the map focused on that report.
+  const reportIdParam = searchParams.get('reportId');
+  const highlighted = useMemo(
+    () => (reportIdParam ? problems.find((p) => p.id === Number(reportIdParam)) ?? null : null),
+    [problems, reportIdParam]
+  );
 
   useEffect(() => {
     citizenApi
@@ -49,10 +68,15 @@ export default function CommunityMap() {
 
   const points = useMemo(() => problems.filter((p) => p.latitude != null && p.longitude != null), [problems]);
   const categories = useMemo(() => [...new Set(points.map((point) => point.categoryName))].sort(), [points]);
+  // Deep-linked report is always shown, even if filters would hide it.
   const filteredPoints = useMemo(() => points.filter((point) => {
     const matchesSearch = !search.trim() || `${point.title} ${point.reference} ${point.district} ${point.categoryName}`.toLowerCase().includes(search.toLowerCase());
     return matchesSearch && (statusFilter === 'ALL' || point.status === statusFilter) && (categoryFilter === 'ALL' || point.categoryName === categoryFilter);
   }), [categoryFilter, points, search, statusFilter]);
+  const visiblePoints = useMemo(
+    () => (highlighted && !filteredPoints.some((p) => p.id === highlighted.id) ? [...filteredPoints, highlighted] : filteredPoints),
+    [filteredPoints, highlighted]
+  );
 
   function findNearby() {
     if (!navigator.geolocation) {
@@ -77,6 +101,13 @@ export default function CommunityMap() {
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  }
+
+  function clearHighlight() {
+    if (reportIdParam) {
+      searchParams.delete('reportId');
+      setSearchParams(searchParams, { replace: true });
+    }
   }
 
   if (loading) return <Spinner />;
@@ -118,32 +149,76 @@ export default function CommunityMap() {
 
       <div className="grid gap-6 lg:grid-cols-[1.65fr_0.8fr]">
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4"><div><h2 className="font-bold text-slate-900">Live Rwanda map</h2><p className="mt-1 text-xs text-slate-500">Blue boundary shows the national outline. Markers show public problems.</p></div><div className="flex items-center gap-2 text-xs text-slate-500"><span className="h-3 w-3 rounded-full bg-rwanda-blue" /> Rwanda boundary <span className="ml-2 h-3 w-3 rounded-full bg-rwanda-yellow" /> Problem</div></div>
-          <MapContainer center={RWANDA_CENTER} zoom={8} className="h-[520px] w-full" scrollWheelZoom>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            {rwandaBoundary && <GeoJSON data={rwandaBoundary} style={{ color: '#0067b1', weight: 3, fillColor: '#0067b1', fillOpacity: 0.08 }} />}
-            {filteredPoints.map((p) => (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+          <div>
+            <h2 className="font-bold text-slate-900">Live Rwanda map</h2>
+            <p className="mt-1 text-xs text-slate-500">Click a marker to see the problem. Deep links from reports focus and highlight their location.</p>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-500"><span className="h-3 w-3 rounded-full bg-rwanda-blue" /> Rwanda boundary <span className="ml-2 h-3 w-3 rounded-full bg-rwanda-yellow" /> Problem</div>
+        </div>
+        <MapContainer center={RWANDA_CENTER} zoom={8} className="h-[520px] w-full" scrollWheelZoom>
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          {rwandaBoundary && <GeoJSON data={rwandaBoundary} style={{ color: '#0067b1', weight: 3, fillColor: '#0067b1', fillOpacity: 0.08 }} />}
+          {highlighted && highlighted.latitude != null && highlighted.longitude != null && (
+            <>
+              <FlyTo target={[highlighted.latitude, highlighted.longitude]} />
               <CircleMarker
-                key={p.id}
-                center={[p.latitude as number, p.longitude as number]}
-                radius={8}
-                pathOptions={{ color: p.categoryColor ?? STATUS_COLOR[p.status] ?? '#00A1DE', fillOpacity: 0.7 }}
-              >
-                <Popup>
-                  <div className="text-sm">
-                    <p className="font-semibold">{p.categoryIcon ? `${p.categoryIcon} ` : ''}{p.title}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">{p.reference} · {p.district}</p>
-                    <div className="mt-1"><StatusBadge status={p.status} /></div>
+                center={[highlighted.latitude, highlighted.longitude]}
+                radius={22}
+                pathOptions={{ color: '#f59e0b', weight: 2, fillOpacity: 0.15, dashArray: '4 4' }}
+                interactive={false}
+              />
+            </>
+          )}
+          {visiblePoints.map((p) => (
+            <CircleMarker
+              key={p.id}
+              center={[p.latitude as number, p.longitude as number]}
+              radius={p.id === highlighted?.id ? 12 : 8}
+              pathOptions={{ color: p.id === highlighted?.id ? '#f59e0b' : (p.categoryColor ?? STATUS_COLOR[p.status] ?? '#00A1DE'), fillOpacity: 0.7 }}
+              eventHandlers={{
+                add: (e) => { if (p.id === highlighted?.id) { (e.target as LeafletCircleMarker).openPopup(); } },
+              }}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <p className="font-semibold">{p.categoryIcon ? `${p.categoryIcon} ` : ''}{p.title}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{p.reference} · {p.district}</p>
+                  <div className="mt-1"><StatusBadge status={p.status} /></div>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      className="rounded bg-rwanda-blue px-2 py-1 text-xs font-semibold text-white hover:bg-rwanda-blue/90"
+                      onClick={() => navigate(`/reports/${p.id}`)}
+                    >
+                      View report →
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                      onClick={() => {
+                        // Highlight this marker (fly to + pulse ring) without navigating away.
+                        searchParams.set('reportId', String(p.id));
+                        setSearchParams(searchParams, { replace: true });
+                      }}
+                    >
+                      Focus
+                    </button>
                   </div>
-                </Popup>
-              </CircleMarker>
-            ))}
-          </MapContainer>
+                </div>
+              </Popup>
+            </CircleMarker>
+          ))}
+        </MapContainer>
           {filteredPoints.length === 0 && (
             <p className="p-4 text-center text-sm text-slate-400">{points.length === 0 ? 'No mapped problems yet — reports with coordinates appear here once verified.' : 'No public problems match the current search and filters.'}</p>
+          )}
+          {highlighted && filteredPoints.length > 0 && !filteredPoints.some((p) => p.id === highlighted.id) && (
+            <p className="border-t border-slate-100 p-3 text-center text-xs text-amber-600">
+              Showing highlighted report outside the current filters — <button className="font-semibold underline" onClick={clearHighlight}>clear highlight</button>
+            </p>
           )}
         </section>
 

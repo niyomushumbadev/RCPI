@@ -48,7 +48,7 @@ export default function MyReports() {
       <PageHeader
         title="My reports"
         subtitle="Every problem you have reported and where it stands."
-        actions={<Link to="/reports/new" className="btn-primary">+ New report</Link>}
+        actions={<Link to="/citizen/report/create" className="btn-primary">+ New report</Link>}
       />
 
       {/* Filter chips */}

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/ui';
+import { useAuth } from '../../context/AuthContext';
 
 const steps = [
   'Open the report form and choose the category that matches your issue.',
@@ -10,9 +11,17 @@ const steps = [
 ];
 
 export default function Help() {
+  const { user } = useAuth();
+  const isCitizen = !user || user.role === 'CITIZEN';
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <PageHeader title="Citizen help" subtitle="Simple guidance for making reports, checking updates, and using the portal." />
+      <PageHeader
+        title={isCitizen ? 'Citizen help' : 'Staff help'}
+        subtitle={isCitizen
+          ? 'Simple guidance for making reports, checking updates, and using the portal.'
+          : 'Guidance for reviewing, verifying and resolving community reports.'}
+      />
 
       <div className="card space-y-5 p-6">
         <section>
@@ -59,7 +68,9 @@ export default function Help() {
         </section>
 
         <div className="flex justify-end">
-          <Link to="/citizen/reports" className="btn-primary">Go to My Reports</Link>
+          <Link to={isCitizen ? '/citizen/reports' : '/workflow/reports'} className="btn-primary">
+            {isCitizen ? 'Go to My Reports' : 'Go to the reports queue'}
+          </Link>
         </div>
       </div>
     </div>

@@ -112,6 +112,9 @@ export async function createReport(req: Request, res: Response) {
 
 export async function getReport(req: Request, res: Response) {
   const id = Number(req.params.id);
+  // Guard against non-numeric :id (e.g. an unknown path falling through to
+  // this route) — NaN would crash Prisma and take down the whole process.
+  if (!Number.isInteger(id) || id <= 0) return notFound(res, 'Report not found');
   const report = await prisma.report.findUnique({
     where: { id },
     include: {
