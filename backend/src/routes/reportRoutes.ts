@@ -25,5 +25,6 @@ router.post('/:id/assign', requireRole('SECTOR_OFFICER', 'OFFICER', 'DISTRICT_AD
 router.post('/:id/evidence', requireRole('CITIZEN', ...STAFF), evidence.evidenceUpload.single('file'), evidence.uploadEvidenceTask3);
 router.get('/:id/evidence', requireRole('CITIZEN', ...VIEWERS), evidence.listEvidenceTask3);
 router.get('/:id/evidence/:evidenceId/download', requireRole('CITIZEN', ...VIEWERS), evidence.downloadEvidenceTask3);
+router.delete('/:id/evidence/:evidenceId', requireRole('CITIZEN', ...STAFF, 'ANALYST'), evidence.deleteEvidenceTask3);
 
 export default router;

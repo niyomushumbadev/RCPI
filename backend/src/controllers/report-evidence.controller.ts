@@ -106,3 +106,29 @@ export async function downloadEvidenceTask3(req: Request, res: Response) {
   if (!fs.existsSync(filePath)) return notFound(res, 'Evidence file is no longer available');
   return res.download(filePath, item.fileName);
 }
+
+// DELETE /api/v1/reports/:id/evidence/:evidenceId — uploader-role policy:
+// citizens may remove their own evidence while the report is open;
+// staff may remove any evidence on reports they can access.
+export async function deleteEvidenceTask3(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  const evidenceId = Number(req.params.evidenceId);
+  if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(evidenceId) || evidenceId <= 0) return notFound(res, 'Evidence not found');
+  const report = await prisma.report.findUnique({ where: { id }, select: { citizenId: true, status: true } });
+  const item = await prisma.evidence.findFirst({ where: { id: evidenceId, reportId: id } });
+  if (!report || !item) return notFound(res, 'Evidence not found');
+  const isStaff = ['OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'].includes(req.user!.role);
+  if (!isStaff) {
+    if (report.citizenId !== req.user!.sub) return fail(res, 'You do not have permission to delete this evidence', 403);
+    if (!['SUBMITTED', 'RECEIVED', 'UNDER_REVIEW', 'PENDING_VERIFICATION'].includes(report.status)) {
+      return fail(res, 'Evidence can no longer be changed because review has started', 409);
+  }
+  }
+  fs.unlink(path.join(uploadDir, item.storedName), () => undefined);
+  await prisma.evidence.delete({ where: { id: item.id } });
+  await prisma.reportStatusHistory.create({
+    data: { reportId: id, fromStatus: report.status, toStatus: report.status, note: `Evidence removed: ${item.fileName}`, actorId: req.user!.sub, actorName: `${req.user!.firstName} ${req.user!.lastName}` },
+  });
+  await audit(req, { action: 'EVIDENCE_DELETED', resourceType: 'REPORT', resourceId: String(id), detail: `file=${item.fileName}` });
+  return ok(res, null, 'Evidence deleted');
+}

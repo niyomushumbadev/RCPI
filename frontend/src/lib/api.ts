@@ -227,7 +227,7 @@ export const geoApi = {
 export const metaApi = {
   categories: (activeOnly = true) =>
     request<{ categories: Category[] }>('/categories', { query: { activeOnly: activeOnly ? undefined : 'false' }, auth: false }),
-  departments: () => request<{ departments: Department[] }>('/departments'),
+  departments: (all = false) => request<{ departments: Department[] }>('/departments', { query: { all: all ? 'true' : undefined } }),
 };
 
 export const aiApi = {
@@ -252,6 +252,7 @@ export const notificationApi = {
     request<{ notifications: Notification[]; unreadCount: number; pagination: Pagination }>('/notifications', { query: { page } }),
   markRead: (id: number) => request<null>(`/notifications/${id}/read`, { method: 'PUT' }),
   markAllRead: () => request<null>('/notifications/read-all', { method: 'PUT' }),
+  delete: (id: number) => request<null>(`/notifications/${id}`, { method: 'DELETE' }),
 };
 
 // ─── Citizen ───
@@ -349,6 +350,8 @@ export const evidenceApi = {
     return request<{ evidence: { id: number; fileName: string; mimeType: string; sizeBytes: number; uploadedAt: string } }>(`/reports/${reportId}/evidence`, { method: 'POST', body: form });
   },
   downloadUrl: (reportId: number, evidenceId: number) => `/api/v1/reports/${reportId}/evidence/${evidenceId}/download`,
+  remove: (reportId: number, evidenceId: number) =>
+    request<null>(`/reports/${reportId}/evidence/${evidenceId}`, { method: 'DELETE' }),
 };
 
 export interface CreateReportInput {
@@ -457,8 +460,17 @@ export const adminApi = {
   updateCategory: (id: number, payload: { name?: string; isActive?: boolean }) =>
     request<{ category: Category }>(`/categories/${id}`, { method: 'PUT', body: payload }),
 
+  deleteCategory: (id: number) =>
+    request<null>(`/categories/${id}`, { method: 'DELETE' }),
+
   createDepartment: (payload: { name: string; nameRw?: string; nameFr?: string; email?: string; phone?: string }) =>
     request<{ department: Department }>('/departments', { method: 'POST', body: payload }),
+
+  updateDepartment: (id: number, payload: { name?: string; nameRw?: string; nameFr?: string; email?: string; phone?: string; isActive?: boolean }) =>
+    request<{ department: Department }>(`/departments/${id}`, { method: 'PUT', body: payload }),
+
+  deleteDepartment: (id: number) =>
+    request<null>(`/departments/${id}`, { method: 'DELETE' }),
 
   createAlert: (payload: {
     title: string;
@@ -469,6 +481,12 @@ export const adminApi = {
     districtId?: number;
     expiresAt?: string;
   }) => request<{ alert: CommunityAlert }>('/alerts', { method: 'POST', body: payload }),
+
+  updateAlert: (id: number, payload: { title?: string; message?: string; severity?: string; category?: string | null; districtId?: number | null; expiresAt?: string | null; isActive?: boolean }) =>
+    request<{ alert: CommunityAlert }>(`/alerts/${id}`, { method: 'PUT', body: payload }),
+
+  deleteAlert: (id: number) =>
+    request<null>(`/alerts/${id}`, { method: 'DELETE' }),
 
   settings: () => request<{ settings: Array<{ key: string; value: string }> }>('/admin/settings'),
 

@@ -39,6 +39,15 @@ export default function Notifications() {
     }
   }
 
+  async function remove(id: number) {
+    try {
+      await notificationApi.delete(id);
+      setData((d) => (d ? { ...d, notifications: d.notifications.filter((n) => n.id !== id) } : d));
+    } catch {
+      // ignore
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
@@ -79,6 +88,14 @@ export default function Notifications() {
                     Mark read
                   </button>
                 )}
+                <button
+                  className="text-xs text-slate-400 hover:text-red-600"
+                  onClick={() => remove(n.id)}
+                  aria-label="Delete notification"
+                  title="Delete"
+                >
+                  <i className="fa-solid fa-trash-can" aria-hidden="true" />
+                </button>
               </div>
             </div>
           ))}

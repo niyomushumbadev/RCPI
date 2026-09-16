@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../config/db';
-import { ok, fail } from '../utils/helpers';
+import { ok, fail, notFound } from '../utils/helpers';
 
 // ─── Geography (Task 5 / Rwanda administrative structure) ───
 
@@ -83,11 +83,31 @@ export async function updateCategory(req: Request, res: Response) {
   return ok(res, { category }, 'Category updated');
 }
 
+// DELETE /api/v1/categories/:id (admin) — blocked when referenced; deactivate instead
+export async function deleteCategory(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return notFound(res, 'Category not found');
+  const [reports, children] = await Promise.all([
+    prisma.report.count({ where: { categoryId: id } }),
+    prisma.category.count({ where: { parentId: id } }),
+  ]);
+  if (reports > 0 || children > 0) {
+    return fail(res, `Cannot delete this category: ${reports} report(s) and ${children} sub-category(ies) reference it. Deactivate it instead.`, 409);
+  }
+  const category = await prisma.category.delete({ where: { id } }).catch(() => null);
+  if (!category) return notFound(res, 'Category not found');
+  return ok(res, null, 'Category deleted');
+}
+
 // ─── Departments (admin) ───
 
-// GET /api/v1/departments
-export async function getDepartments(_req: Request, res: Response) {
-  const departments = await prisma.department.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
+// GET /api/v1/departments?all=true (admin) — all=true includes inactive rows
+export async function getDepartments(req: Request, res: Response) {
+  const includeInactive = req.query.all === 'true';
+  const departments = await prisma.department.findMany({
+    where: includeInactive ? {} : { isActive: true },
+    orderBy: { name: 'asc' },
+  });
   return ok(res, { departments });
 }
 
@@ -101,6 +121,43 @@ export async function createDepartment(req: Request, res: Response) {
     data: { name: String(name).trim(), nameRw: nameRw ?? null, nameFr: nameFr ?? null, email: email ?? null, phone: phone ?? null },
   });
   return ok(res, { department }, 'Department created', 201);
+}
+
+// PUT /api/v1/departments/:id (admin)
+export async function updateDepartment(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return notFound(res, 'Department not found');
+  const { name, nameRw, nameFr, email, phone, isActive } = req.body ?? {};
+  if (name) {
+    const exists = await prisma.department.findFirst({ where: { name: String(name).trim(), id: { not: id } } });
+    if (exists) return fail(res, 'A department with this name already exists', 409);
+  }
+  const department = await prisma.department.update({
+    where: { id },
+    data: {
+      ...(name ? { name: String(name).trim() } : {}),
+      ...(nameRw !== undefined ? { nameRw } : {}),
+      ...(nameFr !== undefined ? { nameFr } : {}),
+      ...(email !== undefined ? { email: email || null } : {}),
+      ...(phone !== undefined ? { phone: phone || null } : {}),
+      ...(isActive !== undefined ? { isActive: Boolean(isActive) } : {}),
+    },
+  }).catch(() => null);
+  if (!department) return notFound(res, 'Department not found');
+  return ok(res, { department }, 'Department updated');
+}
+
+// DELETE /api/v1/departments/:id (admin) — blocked when reports are assigned
+export async function deleteDepartment(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return notFound(res, 'Department not found');
+  const reports = await prisma.report.count({ where: { departmentId: id } });
+  if (reports > 0) {
+    return fail(res, `Cannot delete this department: ${reports} report(s) are assigned to it. Deactivate it instead.`, 409);
+  }
+  const department = await prisma.department.delete({ where: { id } }).catch(() => null);
+  if (!department) return notFound(res, 'Department not found');
+  return ok(res, null, 'Department deleted');
 }
 
 // ─── Notifications (any authenticated user) ───
@@ -142,6 +199,15 @@ export async function markAllNotificationsRead(req: Request, res: Response) {
   return ok(res, null, 'All notifications marked as read');
 }
 
+// DELETE /api/v1/notifications/:id — owner only
+export async function deleteNotification(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return notFound(res, 'Notification not found');
+  const result = await prisma.notification.deleteMany({ where: { id, userId: req.user!.sub } });
+  if (result.count === 0) return notFound(res, 'Notification not found');
+  return ok(res, null, 'Notification deleted');
+}
+
 // ─── Community alerts (public) ───
 
 // GET /api/v1/alerts
@@ -170,4 +236,35 @@ export async function createAlert(req: Request, res: Response) {
     },
   });
   return ok(res, { alert }, 'Alert published', 201);
+}
+
+// PUT /api/v1/alerts/:id (admin/officer) — edit or deactivate an existing alert
+export async function updateAlert(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return notFound(res, 'Alert not found');
+  const { title, message, severity, category, provinceId, districtId, expiresAt, isActive } = req.body ?? {};
+  const alert = await prisma.communityAlert.update({
+    where: { id },
+    data: {
+      ...(title ? { title: String(title).slice(0, 200) } : {}),
+      ...(message ? { message: String(message).slice(0, 1000) } : {}),
+      ...(severity ? { severity: ['INFO', 'WARNING', 'CRITICAL'].includes(severity) ? severity : 'INFO' } : {}),
+      ...(category !== undefined ? { category: category || null } : {}),
+      ...(provinceId !== undefined ? { provinceId: provinceId ? Number(provinceId) : null } : {}),
+      ...(districtId !== undefined ? { districtId: districtId ? Number(districtId) : null } : {}),
+      ...(expiresAt !== undefined ? { expiresAt: expiresAt ? new Date(expiresAt) : null } : {}),
+      ...(isActive !== undefined ? { isActive: Boolean(isActive) } : {}),
+    },
+  }).catch(() => null);
+  if (!alert) return notFound(res, 'Alert not found');
+  return ok(res, { alert }, 'Alert updated');
+}
+
+// DELETE /api/v1/alerts/:id (admin/officer)
+export async function deleteAlert(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return notFound(res, 'Alert not found');
+  const alert = await prisma.communityAlert.delete({ where: { id } }).catch(() => null);
+  if (!alert) return notFound(res, 'Alert not found');
+  return ok(res, null, 'Alert deleted');
 }

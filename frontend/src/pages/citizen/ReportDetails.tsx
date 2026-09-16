@@ -110,6 +110,16 @@ export default function ReportDetail() {
     }
   }
 
+  async function handleEvidenceDelete(evidenceId: number) {
+    if (!report || !window.confirm('Delete this evidence file? This cannot be undone.')) return;
+    try {
+      await evidenceApi.remove(report.id, evidenceId);
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not delete evidence');
+    }
+  }
+
   if (loading) return <Spinner />;
   if (error) return <ErrorBox message={error} />;
   if (!report) return null;
@@ -214,6 +224,9 @@ export default function ReportDetail() {
               {report.evidence.map((ev) => (
                 <li key={ev.id} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600">
                   <a href={evidenceApi.downloadUrl(report.id, ev.id)} className="hover:text-brand-primary hover:underline"><Icon name={ev.mimeType.startsWith('image/') ? 'fa-image' : 'fa-file-lines'} /> {ev.fileName}</a> <span className="text-slate-400">({formatBytes(ev.sizeBytes)})</span>
+                  <button className="ml-2 text-slate-400 hover:text-red-600" aria-label={`Delete ${ev.fileName}`} title="Delete evidence" onClick={() => handleEvidenceDelete(ev.id)}>
+                    <i className="fa-solid fa-trash-can" aria-hidden="true" />
+                  </button>
                 </li>
               ))}
             </ul>

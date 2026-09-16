@@ -16,11 +16,14 @@ export const categoryRouter = Router();
 categoryRouter.get('/', support.getCategories);
 categoryRouter.post('/', authenticate, requireRole('SYSTEM_ADMIN', 'NATIONAL_ADMIN'), support.createCategory);
 categoryRouter.put('/:id', authenticate, requireRole('SYSTEM_ADMIN', 'NATIONAL_ADMIN'), support.updateCategory);
+categoryRouter.delete('/:id', authenticate, requireRole('SYSTEM_ADMIN', 'NATIONAL_ADMIN'), support.deleteCategory);
 
 // ── Departments: read for workflow, admin write ──
 export const departmentRouter = Router();
-departmentRouter.get('/', authenticate, support.getDepartments);
+departmentRouter.get('/', authenticate, support.getDepartments); // ?all=true (admin) includes inactive
 departmentRouter.post('/', authenticate, requireRole('SYSTEM_ADMIN', 'NATIONAL_ADMIN'), support.createDepartment);
+departmentRouter.put('/:id', authenticate, requireRole('SYSTEM_ADMIN', 'NATIONAL_ADMIN'), support.updateDepartment);
+departmentRouter.delete('/:id', authenticate, requireRole('SYSTEM_ADMIN', 'NATIONAL_ADMIN'), support.deleteDepartment);
 
 // ── Notifications: any authenticated user ──
 export const notificationRouter = Router();
@@ -28,8 +31,12 @@ notificationRouter.use(authenticate);
 notificationRouter.get('/', support.getNotifications);
 notificationRouter.put('/read-all', support.markAllNotificationsRead);
 notificationRouter.put('/:id/read', support.markNotificationRead);
+notificationRouter.delete('/:id', support.deleteNotification);
 
 // ── Community alerts ──
 export const alertRouter = Router();
+const alertManagers = requireRole('OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN');
 alertRouter.get('/', support.getPublicAlerts);
-alertRouter.post('/', authenticate, requireRole('OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'), support.createAlert);
+alertRouter.post('/', authenticate, alertManagers, support.createAlert);
+alertRouter.put('/:id', authenticate, alertManagers, support.updateAlert);
+alertRouter.delete('/:id', authenticate, alertManagers, support.deleteAlert);
