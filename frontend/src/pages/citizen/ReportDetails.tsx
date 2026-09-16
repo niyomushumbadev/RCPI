@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { aiApi, citizenApi, evidenceApi, workflowApi } from '../../lib/api';
 import type { AIAnalysis, ChatMessage, ReportDetail as ReportData } from '../../types';
 import { StatusBadge, UrgencyBadge, formatBytes, formatDateTime, timeAgo } from '../../lib/format';
+import { Icon } from '../../components/icons';
 import { Spinner, ErrorBox } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 
@@ -118,7 +119,7 @@ export default function ReportDetail() {
     <div className="mx-auto max-w-4xl">
       {justCreated && (
         <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          ✅ Report submitted successfully! Reference: <strong>{report.reference}</strong>. We will notify you as it moves through review.
+          <i className="fa-solid fa-circle-check" aria-hidden="true" /> Report submitted successfully! Reference: <strong>{report.reference}</strong>. We will notify you as it moves through review.
         </div>
       )}
 
@@ -146,7 +147,7 @@ export default function ReportDetail() {
         {aiAnalysis ? (
           <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-900">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-bold text-indigo-900">🤖 AI decision support</h2>
+              <h2 className="font-bold text-indigo-900"><i className="fa-solid fa-robot" aria-hidden="true" /> AI decision support</h2>
               <Link to={`/ai/reports/${report.id}`} className="text-sm font-semibold text-indigo-700 hover:underline">View full analysis →</Link>
             </div>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -167,7 +168,7 @@ export default function ReportDetail() {
           </div>
         ) : (
           <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-            🤖 AI analysis is being prepared for this report. <Link to={`/ai/reports/${report.id}`} className="font-semibold text-rwanda-blue hover:underline">Check the AI status</Link>
+            <i className="fa-solid fa-robot" aria-hidden="true" /> AI analysis is being prepared for this report. <Link to={`/ai/reports/${report.id}`} className="font-semibold text-rwanda-blue hover:underline">Check the AI status</Link>
           </div>
         )}
 
@@ -193,11 +194,11 @@ export default function ReportDetail() {
 
         {report.evidence.length > 0 && (
           <div className="mt-4 border-t border-slate-100 pt-4">
-            <p className="mb-2 text-sm font-semibold text-slate-700">📎 Evidence ({report.evidence.length})</p>
+            <p className="mb-2 text-sm font-semibold text-slate-700"><i className="fa-solid fa-paperclip" aria-hidden="true" /> Evidence ({report.evidence.length})</p>
             <ul className="flex flex-wrap gap-2">
               {report.evidence.map((ev) => (
                 <li key={ev.id} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600">
-                  <a href={evidenceApi.downloadUrl(report.id, ev.id)} className="hover:text-rwanda-blue hover:underline">{ev.mimeType.startsWith('image/') ? '🖼️' : '📄'} {ev.fileName}</a> <span className="text-slate-400">({formatBytes(ev.sizeBytes)})</span>
+                  <a href={evidenceApi.downloadUrl(report.id, ev.id)} className="hover:text-brand-primary hover:underline"><Icon name={ev.mimeType.startsWith('image/') ? 'fa-image' : 'fa-file-lines'} /> {ev.fileName}</a> <span className="text-slate-400">({formatBytes(ev.sizeBytes)})</span>
                 </li>
               ))}
             </ul>
@@ -303,7 +304,7 @@ function FeedbackCard({ reportId, existing, onDone }: { reportId: number; existi
     return (
       <div className="card p-6">
         <h2 className="font-bold text-slate-900">Your feedback</h2>
-        <p className="mt-2 text-lg text-amber-500">{'★'.repeat(existing.rating)}{'☆'.repeat(5 - existing.rating)}</p>
+        <p className="mt-2 text-lg text-amber-500">{Array.from({ length: existing.rating }, (_, i) => <i key={`f${i}`} className="fa-solid fa-star" aria-hidden="true" />)}{Array.from({ length: 5 - existing.rating }, (_, i) => <i key={`e${i}`} className="fa-regular fa-star" aria-hidden="true" />)}</p>
         {existing.comment && <p className="mt-2 text-sm text-slate-600">“{existing.comment}”</p>}
       </div>
     );
@@ -331,7 +332,7 @@ function FeedbackCard({ reportId, existing, onDone }: { reportId: number; existi
       <div className="mt-3 flex gap-1 text-3xl">
         {[1, 2, 3, 4, 5].map((n) => (
           <button key={n} type="button" className={`transition-transform hover:scale-110 ${n <= rating ? 'text-amber-400' : 'text-slate-300'}`} onClick={() => setRating(n)}>
-            ★
+            <i className="fa-solid fa-star" aria-hidden="true" />
           </button>
         ))}
       </div>
@@ -362,7 +363,7 @@ function ReopenCard({ reportId, visible, onDone }: { reportId: number; visible: 
     return (
       <div className="card p-6">
         <h2 className="font-bold text-slate-900">Reopen request</h2>
-        <p className="mt-2 text-sm text-green-700">✅ Your request was submitted. Government staff will review it.</p>
+        <p className="mt-2 text-sm text-green-700"><i className="fa-solid fa-circle-check" aria-hidden="true" /> Your request was submitted. Government staff will review it.</p>
       </div>
     );
   }

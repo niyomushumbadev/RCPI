@@ -137,7 +137,7 @@ export default function Profile() {
       <form onSubmit={handleSave} className="gov-card space-y-5 p-6">
         {error && <ErrorBox message={error} />}
         {saved && (
-          <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">✅ Profile updated successfully.</div>
+          <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"><i className="fa-solid fa-circle-check" aria-hidden="true" /> Profile updated successfully.</div>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">

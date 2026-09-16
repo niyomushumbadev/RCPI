@@ -5,15 +5,34 @@ import type { Request, Response } from 'express';
 import { prisma } from '../config/db';
 import { ok } from '../utils/helpers';
 
+// Geographic scope per role level (master spec §3). Each level sees exactly
+// its own administrative area — never more, never less.
 export async function scopeWhere(req: Request): Promise<Record<string, unknown>> {
   const role = req.user!.role;
   if (role === 'CITIZEN') return { citizenId: req.user!.sub };
-  if (role === 'DISTRICT_ADMIN' || role === 'OFFICER') {
-    const me = await prisma.user.findUnique({ where: { id: req.user!.sub }, select: { districtId: true } });
-    if (role === 'DISTRICT_ADMIN') return me?.districtId ? { districtId: me.districtId } : {};
-    if (me?.districtId) return { OR: [{ assignedOfficerId: req.user!.sub }, { districtId: me.districtId }] };
+
+  const me = await prisma.user.findUnique({
+    where: { id: req.user!.sub },
+    select: { provinceId: true, districtId: true, sectorId: true },
+  });
+
+  if (role === 'CELL_OFFICER') {
+    if (me?.sectorId) return { sectorId: me.sectorId };
+    if (me?.districtId) return { districtId: me.districtId };
     return { assignedOfficerId: req.user!.sub };
   }
+  if (role === 'SECTOR_OFFICER' || role === 'OFFICER') {
+    if (me?.sectorId) return { sectorId: me.sectorId };
+    if (me?.districtId) return { districtId: me.districtId }; // unassigned sector → district fallback
+    return { assignedOfficerId: req.user!.sub };
+  }
+  if (role === 'DISTRICT_ADMIN') {
+    return me?.districtId ? { districtId: me.districtId } : { id: -1 };
+  }
+  if (role === 'PROVINCE_ADMIN' || role === 'CITY_ADMIN') {
+    return me?.provinceId ? { provinceId: me.provinceId } : { id: -1 };
+  }
+  // NATIONAL_ADMIN, SYSTEM_ADMIN, EXECUTIVE, ANALYST → nationwide.
   return {};
 }
 

@@ -395,11 +395,11 @@ export async function requestReopen(req: Request, res: Response) {
   const report = await getOwnReport(req, res);
   if (!report) return;
 
-  if (!['RESOLVED', 'CLOSED'].includes(report.status)) {
-    return fail(res, 'Only resolved reports can be reopened', 422);
-  }
   if (report.status === 'REOPEN_REQUESTED') {
     return fail(res, 'A reopening request is already under review', 409);
+  }
+  if (!['RESOLVED', 'CLOSED'].includes(report.status)) {
+    return fail(res, 'Only resolved reports can be reopened', 422);
   }
 
   const { reason } = req.body ?? {};

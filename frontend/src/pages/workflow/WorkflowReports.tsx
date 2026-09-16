@@ -4,6 +4,7 @@ import { workflowApi } from '../../lib/api';
 import type { WorkflowReport } from '../../types';
 import { StatusBadge, formatDate, timeAgo } from '../../lib/format';
 import { PageHeader, Spinner, ErrorBox, EmptyState, Pagination } from '../../components/ui';
+import { CategoryIcon } from '../../components/icons';
 
 const FILTERS = [
   { value: 'ALL', label: 'All' },
@@ -68,7 +69,7 @@ export default function WorkflowReports() {
       {loading && <Spinner />}
 
       {!loading && !error && data && data.reports.length === 0 && (
-        <EmptyState icon="📭" title="No reports in this view" hint="Try another status filter." />
+        <EmptyState icon="fa-inbox" title="No reports in this view" hint="Try another status filter." />
       )}
 
       {!loading && !error && data && data.reports.length > 0 && (
@@ -88,7 +89,7 @@ export default function WorkflowReports() {
               {data.reports.map((r) => (
                 <tr key={r.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-slate-800">{r.categoryIcon ?? '📌'} {r.title}</p>
+                    <p className="font-semibold text-slate-800"><CategoryIcon name={r.categoryName} dbIcon={r.categoryIcon} /> {r.title}</p>
                     <p className="text-xs text-slate-400">{r.reference} · {r.categoryName}</p>
                   </td>
                   <td className="px-4 py-3">
@@ -98,7 +99,7 @@ export default function WorkflowReports() {
                         <p className="text-xs text-slate-400">{r.citizen.email}</p>
                       </>
                     ) : (
-                      <span className="badge bg-slate-100 text-slate-500">🕶️ Anonymous</span>
+                      <span className="badge bg-slate-100 text-slate-500"><i className="fa-solid fa-user-secret" aria-hidden="true" /> Anonymous</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-slate-600">

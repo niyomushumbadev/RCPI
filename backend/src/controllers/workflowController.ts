@@ -409,6 +409,97 @@ export async function listReopenRequests(req: Request, res: Response) {
   return ok(res, { requests });
 }
 
+// POST /api/v1/workflow/reopen-requests/:id/review { decision: 'APPROVE' | 'DECLINE', note? }
+export async function reviewReopenRequest(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  const { decision, note } = req.body ?? {};
+  const action = String(decision ?? '').toUpperCase();
+  if (action !== 'APPROVE' && action !== 'DECLINE') {
+    return fail(res, "decision must be 'APPROVE' or 'DECLINE'", 422);
+  }
+
+  const request = await prisma.reportReopenRequest.findUnique({
+    where: { id },
+    include: { report: { select: { id: true, reference: true, title: true, status: true, citizenId: true, districtId: true } } },
+  });
+  if (!request || !request.report) return notFound(res, 'Reopen request not found');
+  if (request.status !== 'PENDING') return fail(res, `This reopen request was already ${request.status.toLowerCase()}`, 409);
+
+  // Geographic authorization mirrors the transition rules.
+  if (['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN'].includes(req.user?.role ?? '')) {
+    const me = await prisma.user.findUnique({ where: { id: req.user!.sub }, select: { districtId: true } });
+    if (me?.districtId && request.report.districtId !== me.districtId) {
+      return fail(res, 'You can only review reopen requests within your assigned district', 403);
+    }
+  }
+  // Only roles allowed to REOPEN a report may approve; any staff role may decline.
+  const canApprove = (TRANSITION_ROLE_MATRIX.REOPENED ?? []).includes(req.user?.role ?? '');
+  if (action === 'APPROVE' && !canApprove) {
+    return fail(res, `Your role (${req.user?.role}) cannot approve reopen requests`, 403);
+  }
+
+  const actorName = `${req.user!.firstName} ${req.user!.lastName}`;
+  const reviewNote = note ? String(note).slice(0, 500) : null;
+  const newStatus = action === 'APPROVE' ? 'APPROVED' : 'DECLINED';
+
+  await prisma.reportReopenRequest.update({
+    where: { id },
+    data: { status: newStatus },
+  });
+
+  if (action === 'APPROVE') {
+    const report = request.report;
+    await prisma.report.update({ where: { id: report.id }, data: { status: 'REOPENED' } });
+    await prisma.reportStatusHistory.create({
+      data: {
+        reportId: report.id,
+        fromStatus: report.status,
+        toStatus: 'REOPENED',
+        note: `Reopen request approved${reviewNote ? `: ${reviewNote}` : ''} — original citizen reason: ${request.reason.slice(0, 200)}`,
+        actorId: req.user!.sub,
+        actorName,
+      },
+    });
+    await notify({
+      userId: report.citizenId,
+      type: 'REPORT_REOPENED',
+      title: 'Report reopened',
+      message: `Your reopening request for ${report.reference} was approved. The report is active again.`,
+      reportId: report.id,
+    });
+  } else {
+    // Decline restores the report to its pre-request status (usually CLOSED).
+    const priorStatus = ['RESOLVED', 'PENDING_CLOSURE'].includes(request.report.status) ? request.report.status : 'CLOSED';
+    await prisma.report.update({ where: { id: request.report.id }, data: { status: priorStatus } });
+    await prisma.reportStatusHistory.create({
+      data: {
+        reportId: request.report.id,
+        fromStatus: request.report.status,
+        toStatus: priorStatus,
+        note: `Reopen request declined${reviewNote ? `: ${reviewNote}` : ''}`,
+        actorId: req.user!.sub,
+        actorName,
+      },
+    });
+    await notify({
+      userId: request.report.citizenId,
+      type: 'REPORT_UPDATED',
+      title: 'Reopen request declined',
+      message: `Your reopening request for ${request.report.reference} was reviewed and declined.${reviewNote ? ` Officer note: ${reviewNote}` : ''}`,
+      reportId: request.report.id,
+    });
+  }
+
+  await audit(req, {
+    action: `REOPEN_REQUEST_${newStatus}`,
+    resourceType: 'REPORT',
+    resourceId: String(request.report.id),
+    detail: `${request.report.reference}: reopen request #${id} ${newStatus.toLowerCase()}${reviewNote ? ` | note: ${reviewNote.slice(0, 200)}` : ''}`,
+  });
+
+  return ok(res, { requestId: id, decision: newStatus }, action === 'APPROVE' ? 'Report reopened' : 'Reopen request declined');
+}
+
 // GET /api/v1/workflow/stats — officer dashboard numbers
 export async function stats(req: Request, res: Response) {
   const [total, submitted, underReview, assigned, inProgress, resolvedToday, escalated] = await Promise.all([

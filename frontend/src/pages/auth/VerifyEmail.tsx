@@ -6,7 +6,7 @@ export default function VerifyEmail() {
       <div className="gov-strip" />
       <div className="mx-auto flex min-h-[calc(100vh-8px)] max-w-xl items-center justify-center px-4 py-10">
         <div className="gov-shell w-full p-8 text-center">
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl">✅</div>
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl"><i className="fa-solid fa-circle-check" aria-hidden="true" /></div>
           <h1 className="text-3xl font-black text-slate-900">Email verified</h1>
           <p className="mt-3 text-sm text-slate-600">
             Your account has been successfully verified. You can now continue to the secure R-CPI portal.

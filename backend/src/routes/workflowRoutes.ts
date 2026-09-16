@@ -10,6 +10,7 @@ const WORKFLOW_STAFF = ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_A
 router.use(authenticate);
 
 router.get('/reopen-requests', requireRole(...WORKFLOW_VIEWERS), wf.listReopenRequests);
+router.post('/reopen-requests/:id/review', requireRole(...WORKFLOW_STAFF), wf.reviewReopenRequest);
 router.get('/stats', requireRole(...WORKFLOW_VIEWERS), wf.stats);
 router.get('/reports', requireRole(...WORKFLOW_VIEWERS), wf.listReports);
 router.get('/reports/:id', requireRole(...WORKFLOW_VIEWERS), wf.getReport);

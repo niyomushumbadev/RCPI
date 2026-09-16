@@ -26,10 +26,10 @@ export default function GovernmentAIDashboard() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon="🤖" label="Reports assessed" value={data.stats.total} tone="blue" />
-        <StatCard icon="🚨" label="AI priority critical" value={data.stats.critical} tone="red" />
-        <StatCard icon="📍" label="Location-aware reports" value={data.stats.mapped} tone="amber" />
-        <StatCard icon="✅" label="Resolved outcomes" value={data.stats.resolved} tone="green" />
+        <StatCard icon="fa-robot" label="Reports assessed" value={data.stats.total} tone="blue" />
+        <StatCard icon="fa-triangle-exclamation" label="AI priority critical" value={data.stats.critical} tone="red" />
+        <StatCard icon="fa-location-dot" label="Location-aware reports" value={data.stats.mapped} tone="amber" />
+        <StatCard icon="fa-circle-check" label="Resolved outcomes" value={data.stats.resolved} tone="green" />
       </div>
 
       <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900">

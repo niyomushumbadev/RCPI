@@ -7,14 +7,14 @@ export default function Landing() {
   const { user } = useAuth();
 
   const features = [
-    { icon: '📝', title: 'Citizen reporting', text: 'Submit a problem with description, location, GPS coordinates and supporting evidence.' },
-    { icon: '🤖', title: 'AI decision support', text: 'Classification, severity, risk, similarity and recommendations help teams review consistently.' },
-    { icon: '🗺️', title: 'Rwanda GIS intelligence', text: 'Explore mapped reports with risk markers, location hierarchy, filters and geographic statistics.' },
-    { icon: '🚦', title: 'Priority and risk', text: 'Combine urgency, age, unresolved status, location and AI signals into an explainable priority score.' },
-    { icon: '🔄', title: 'Government workflow', text: 'Move reports from submission through verification, assignment, action, resolution and reopening.' },
-    { icon: '📊', title: 'Analytics and predictions', text: 'Compare categories and districts, monitor resolution performance and spot emerging patterns.' },
-    { icon: '🔔', title: 'Alerts and notifications', text: 'Keep citizens and public-service teams informed about reports, deadlines, risks and alerts.' },
-    { icon: '🛡️', title: 'Accountability by design', text: 'Role-based access, secure evidence, audit logs and controlled communication protect every action.' },
+    { icon: 'fa-file-pen', title: 'Citizen reporting', text: 'Submit a problem with description, location, GPS coordinates and supporting evidence.' },
+    { icon: 'fa-robot', title: 'AI decision support', text: 'Classification, severity, risk, similarity and recommendations help teams review consistently.' },
+    { icon: 'fa-map-location-dot', title: 'Rwanda GIS intelligence', text: 'Explore mapped reports with risk markers, location hierarchy, filters and geographic statistics.' },
+    { icon: 'fa-traffic-light', title: 'Priority and risk', text: 'Combine urgency, age, unresolved status, location and AI signals into an explainable priority score.' },
+    { icon: 'fa-rotate', title: 'Government workflow', text: 'Move reports from submission through verification, assignment, action, resolution and reopening.' },
+    { icon: 'fa-chart-column', title: 'Analytics and predictions', text: 'Compare categories and districts, monitor resolution performance and spot emerging patterns.' },
+    { icon: 'fa-bell', title: 'Alerts and notifications', text: 'Keep citizens and public-service teams informed about reports, deadlines, risks and alerts.' },
+    { icon: 'fa-shield-halved', title: 'Accountability by design', text: 'Role-based access, secure evidence, audit logs and controlled communication protect every action.' },
   ];
 
   const roles = [
@@ -125,8 +125,8 @@ export default function Landing() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {features.map((f) => (
               <div key={f.title} className="gov-card p-6">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-rwanda-blue/20 bg-rwanda-blue/5 text-2xl">
-                  {f.icon}
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-brand-primary/20 bg-brand-primary/5 text-xl text-brand-primary">
+                  <i className={`fa-solid ${f.icon}`} aria-hidden="true" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">{f.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{f.text}</p>

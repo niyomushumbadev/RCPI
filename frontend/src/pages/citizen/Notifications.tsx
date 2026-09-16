@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { notificationApi } from '../../lib/api';
 import type { Notification as Notif } from '../../types';
 import { PageHeader, Spinner, ErrorBox, EmptyState, Pagination } from '../../components/ui';
+import { Icon } from '../../components/icons';
 import { timeAgo } from '../../lib/format';
 
 export default function Notifications() {
@@ -54,14 +55,14 @@ export default function Notifications() {
       {loading && <Spinner />}
 
       {!loading && !error && data && data.notifications.length === 0 && (
-        <EmptyState icon="🔕" title="No notifications" hint="Updates about your reports will appear here." />
+        <EmptyState icon="fa-bell-slash" title="No notifications" hint="Updates about your reports will appear here." />
       )}
 
       {!loading && !error && data && data.notifications.length > 0 && (
         <div className="card divide-y divide-slate-100">
           {data.notifications.map((n) => (
             <div key={n.id} className={`flex items-start gap-3 p-4 ${n.isRead ? 'opacity-60' : ''}`}>
-              <span className="mt-0.5 text-lg">{n.isRead ? '📭' : '📬'}</span>
+              <span className="mt-0.5 text-lg text-brand-primary"><Icon name={n.isRead ? 'fa-inbox' : 'fa-envelope'} /></span>
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-slate-800">{n.title}</p>
                 <p className="text-sm text-slate-600">{n.message}</p>

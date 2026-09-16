@@ -100,7 +100,7 @@ export default function Login() {
           <p className="mt-2 text-sm text-slate-600">Access the Rwanda Community Problem Intelligence portal.</p>
 
           {error && (
-            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">⚠️ {error}</div>
+            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><i className="fa-solid fa-triangle-exclamation" aria-hidden="true" /> {error}</div>
           )}
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -159,9 +159,9 @@ export default function Login() {
           <div className="mt-6 rounded-2xl border border-rwanda-yellow/40 bg-rwanda-yellow/10 p-4">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-600">Password requirements</p>
             <ul className="mt-2 space-y-1 text-sm text-slate-700">
-              <li>✓ Minimum 8 characters</li>
-              <li>✓ Uppercase and lowercase letters</li>
-              <li>✓ Number and special character</li>
+              <li><i className="fa-solid fa-check" aria-hidden="true" /> Minimum 8 characters</li>
+              <li><i className="fa-solid fa-check" aria-hidden="true" /> Uppercase and lowercase letters</li>
+              <li><i className="fa-solid fa-check" aria-hidden="true" /> Number and special character</li>
             </ul>
           </div>
 

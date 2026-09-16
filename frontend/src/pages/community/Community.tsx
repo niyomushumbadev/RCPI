@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { citizenApi } from '../../lib/api';
 import type { CommunityInsights, CommunityAlert } from '../../types';
 import { Spinner, ErrorBox, StatCard, EmptyState } from '../../components/ui';
+import { CategoryIcon } from '../../components/icons';
 import { timeAgo, formatDate } from '../../lib/format';
 
 const SEVERITY_STYLE: Record<string, string> = {
@@ -39,10 +40,10 @@ export default function Community() {
       <section className="rounded-2xl bg-slate-900 p-6 text-white shadow-sm"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-rwanda-yellow">Rwanda community pulse</p><h1 className="mt-2 text-3xl font-black">Community insights</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">A clear public view of reported problems, progress, resolved work and government alerts across Rwanda.</p></div><a href="/map" className="btn-primary">Open Rwanda map</a></div></section>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon="🌍" label="Public reports" value={insights.stats.totalReports} tone="blue" />
-        <StatCard icon="✅" label="Resolved" value={insights.stats.resolvedReports} tone="green" />
-        <StatCard icon="🔧" label="In progress" value={insights.stats.inProgressReports} tone="amber" />
-        <StatCard icon="🔍" label="Under review" value={insights.stats.underReviewReports} tone="slate" />
+        <StatCard icon="fa-globe" label="Public reports" value={insights.stats.totalReports} tone="blue" />
+        <StatCard icon="fa-circle-check" label="Resolved" value={insights.stats.resolvedReports} tone="green" />
+        <StatCard icon="fa-screwdriver-wrench" label="In progress" value={insights.stats.inProgressReports} tone="amber" />
+        <StatCard icon="fa-magnifying-glass" label="Under review" value={insights.stats.underReviewReports} tone="slate" />
       </div>
 
       <section className="grid gap-4 md:grid-cols-3">
@@ -63,7 +64,7 @@ export default function Community() {
                 const max = Math.max(...insights.mostReported.map((x) => x.count));
                 return (
                   <div key={c.name} className="flex items-center gap-3">
-                    <span className="w-8 text-center text-xl">{c.icon ?? '📌'}</span>
+                    <span className="w-8 text-center text-xl text-brand-primary"><CategoryIcon name={c.name} dbIcon={c.icon} /></span>
                     <div className="min-w-0 flex-1">
                       <div className="flex justify-between text-sm">
                         <span className="font-medium text-slate-700">{c.name}</span>
@@ -83,7 +84,7 @@ export default function Community() {
 
         {/* Recently resolved */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-rwanda-green">Service delivery progress</p><h2 className="mt-1 font-bold text-slate-900">Recently resolved</h2></div><span className="text-2xl">✓</span></div>
+          <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-rwanda-green">Service delivery progress</p><h2 className="mt-1 font-bold text-slate-900">Recently resolved</h2></div><span className="text-2xl"><i className="fa-solid fa-check" aria-hidden="true" /></span></div>
           {insights.recentlyResolved.length === 0 ? (
             <p className="text-sm text-slate-400">Nothing resolved yet — your reports make this happen!</p>
           ) : (
@@ -105,7 +106,7 @@ export default function Community() {
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-600">Official updates</p><h2 className="mt-1 text-lg font-bold text-slate-900">Community alerts</h2></div><span className="text-2xl">!</span></div>
         {alerts.length === 0 ? (
-          <EmptyState icon="🔔" title="No active alerts" hint="Government-issued alerts about weather, safety and services will appear here." />
+          <EmptyState icon="fa-bell" title="No active alerts" hint="Government-issued alerts about weather, safety and services will appear here." />
         ) : (
           <div className="space-y-3">
             {alerts.map((a) => (

@@ -102,9 +102,9 @@ export default function Register() {
               </div>
 
               <div className="mt-8 space-y-3 text-sm text-blue-50">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-3">✓ Secure account setup</div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-3">✓ Role-based public service access</div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-3">✓ Verified district visibility</div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3"><i className="fa-solid fa-check" aria-hidden="true" /> Secure account setup</div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3"><i className="fa-solid fa-check" aria-hidden="true" /> Role-based public service access</div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3"><i className="fa-solid fa-check" aria-hidden="true" /> Verified district visibility</div>
               </div>
             </aside>
 
@@ -123,7 +123,7 @@ export default function Register() {
               </div>
 
               {error && (
-                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">⚠️ {error}</div>
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><i className="fa-solid fa-triangle-exclamation" aria-hidden="true" /> {error}</div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">

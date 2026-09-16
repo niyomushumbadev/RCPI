@@ -1,4 +1,5 @@
 import type { ReportStatus, Urgency } from '../types';
+import { statusFa, urgencyFa } from '../components/icons';
 
 /** Human-friendly label for a report status */
 export function statusLabel(status: string): string {
@@ -10,17 +11,17 @@ export function statusLabel(status: string): string {
 
 const STATUS_STYLES: Record<string, string> = {
   SUBMITTED: 'bg-slate-100 text-slate-700',
-  RECEIVED: 'bg-sky-100 text-sky-800',
-  UNDER_REVIEW: 'bg-amber-100 text-amber-800',
-  VERIFIED: 'bg-emerald-100 text-emerald-800',
-  REJECTED: 'bg-red-100 text-red-800',
-  ASSIGNED: 'bg-indigo-100 text-indigo-800',
-  IN_PROGRESS: 'bg-blue-100 text-blue-800',
-  ESCALATED: 'bg-orange-100 text-orange-800',
-  RESOLVED: 'bg-green-100 text-green-800',
-  CLOSED: 'bg-slate-200 text-slate-700',
-  REOPEN_REQUESTED: 'bg-yellow-100 text-yellow-800',
-  REOPENED: 'bg-fuchsia-100 text-fuchsia-800',
+  RECEIVED: 'bg-blue-50 text-blue-700',
+  UNDER_REVIEW: 'bg-amber-50 text-amber-700',
+  VERIFIED: 'bg-emerald-50 text-emerald-700',
+  REJECTED: 'bg-red-50 text-red-700',
+  ASSIGNED: 'bg-indigo-50 text-indigo-700',
+  IN_PROGRESS: 'bg-blue-100 text-brand-primary',
+  ESCALATED: 'bg-orange-50 text-orange-700',
+  RESOLVED: 'bg-green-50 text-green-700',
+  CLOSED: 'bg-slate-200 text-slate-600',
+  REOPEN_REQUESTED: 'bg-yellow-50 text-yellow-800',
+  REOPENED: 'bg-fuchsia-50 text-fuchsia-700',
 };
 
 export function statusClass(status: string): string {
@@ -28,16 +29,21 @@ export function statusClass(status: string): string {
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  return <span className={`badge ${statusClass(status)}`}>{statusLabel(status)}</span>;
+  return (
+    <span className={`badge ${statusClass(status)}`}>
+      <i className={`${statusFa(status)} text-[10px]`} aria-hidden="true" />
+      {statusLabel(status)}
+    </span>
+  );
 }
 
 export function UrgencyBadge({ urgency }: { urgency: string }) {
   const cls =
-    urgency === 'HIGH' ? 'bg-red-100 text-red-700' : urgency === 'MEDIUM' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600';
-  const icon = urgency === 'HIGH' ? '🔴' : urgency === 'MEDIUM' ? '🟡' : '🟢';
+    urgency === 'HIGH' ? 'bg-red-50 text-red-700' : urgency === 'MEDIUM' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600';
   return (
     <span className={`badge ${cls}`}>
-      {icon} {urgency.charAt(0) + urgency.slice(1).toLowerCase()}
+      <i className={`${urgencyFa(urgency)} text-[9px]`} aria-hidden="true" />
+      {urgency.charAt(0) + urgency.slice(1).toLowerCase()}
     </span>
   );
 }

@@ -57,10 +57,10 @@ export default function GovernmentIntelligence() {
       {error && <ErrorBox message={error} />}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon="📋" label="All reports" value={data.stats.total} tone="blue" />
-        <StatCard icon="🚨" label="Critical priority" value={data.stats.critical} tone="red" />
-        <StatCard icon="✅" label="Resolution rate" value={`${data.stats.resolutionRate}%`} tone="green" />
-        <StatCard icon="📍" label="Mapped reports" value={data.stats.mapped} tone="amber" />
+        <StatCard icon="fa-clipboard-list" label="All reports" value={data.stats.total} tone="blue" />
+        <StatCard icon="fa-triangle-exclamation" label="Critical priority" value={data.stats.critical} tone="red" />
+        <StatCard icon="fa-circle-check" label="Resolution rate" value={`${data.stats.resolutionRate}%`} tone="green" />
+        <StatCard icon="fa-location-dot" label="Mapped reports" value={data.stats.mapped} tone="amber" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.8fr_1fr]">

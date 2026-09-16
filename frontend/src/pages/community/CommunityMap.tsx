@@ -7,6 +7,7 @@ import { citizenApi } from '../../lib/api';
 import type { MapProblem, NearbyProblem } from '../../types';
 import { StatusBadge, timeAgo } from '../../lib/format';
 import { PageHeader, Spinner, ErrorBox, EmptyState } from '../../components/ui';
+import { CategoryIcon } from '../../components/icons';
 
 // Center of Rwanda
 const RWANDA_CENTER: [number, number] = [-1.9499, 30.0588];
@@ -92,7 +93,8 @@ export default function CommunityMap() {
               ← Back
             </button>
             <button className="btn-outline" onClick={findNearby} disabled={locating}>
-              {locating ? 'Locating…' : '📍 Find problems near me'}
+              {locating ? 'Locating…' : 'Find problems near me'}
+              {!locating && <i className="fa-solid fa-location-dot ms-1" aria-hidden="true" />}
             </button>
           </div>
         }
@@ -151,13 +153,13 @@ export default function CommunityMap() {
           {nearby === null ? (
             <p className="text-sm text-slate-400">Click “Find problems near me” to see verified issues within 10 km of your position.</p>
           ) : nearby.length === 0 ? (
-            <EmptyState icon="🎉" title="Nothing nearby" hint="No verified problems within 10 km. Your neighbourhood looks good!" />
+            <EmptyState icon="fa-champagne-glasses" title="Nothing nearby" hint="No verified problems within 10 km. Your neighbourhood looks good!" />
           ) : (
             <ul className="max-h-[420px] space-y-2 overflow-y-auto">
               {nearby.map((n) => (
                 <li key={n.id} className="rounded-lg border border-slate-100 p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-slate-800">{n.categoryIcon ?? '📌'} {n.title}</p>
+                    <p className="text-sm font-semibold text-slate-800"><CategoryIcon name={n.categoryName} dbIcon={n.categoryIcon} /> {n.title}</p>
                     <span className="shrink-0 text-xs font-medium text-rwanda-blue">{n.distanceKm} km</span>
                   </div>
                   <p className="mt-0.5 text-xs text-slate-400">{n.categoryName} · {n.district} · {timeAgo(n.createdAt)}</p>

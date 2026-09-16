@@ -87,9 +87,9 @@ export default function WorkflowReportDetail() {
       await workflowApi.postUpdate(id, updateMsg.trim());
       setUpdateMsg('');
       await load();
-      setActionMsg('✅ Update posted — the citizen has been notified.');
+      setActionMsg('✔ Update posted — the citizen has been notified.');
     } catch (err) {
-      setActionMsg(err instanceof Error ? `⚠️ ${err.message}` : '⚠️ Could not post update');
+      setActionMsg(err instanceof Error ? `✖ ${err.message}` : '✖ Could not post update');
     } finally {
       setActionBusy(false);
     }
@@ -104,9 +104,9 @@ export default function WorkflowReportDetail() {
       await workflowApi.replyMessage(id, chatMsg.trim());
       setChatMsg('');
       await load();
-      setActionMsg('✅ Message sent to the citizen.');
+      setActionMsg('✔ Message sent to the citizen.');
     } catch (err) {
-      setActionMsg(err instanceof Error ? `⚠️ ${err.message}` : '⚠️ Could not send message');
+      setActionMsg(err instanceof Error ? `✖ ${err.message}` : '✖ Could not send message');
     } finally {
       setActionBusy(false);
     }
@@ -133,7 +133,7 @@ export default function WorkflowReportDetail() {
               <StatusBadge status={report.status} />
               <UrgencyBadge urgency={report.urgency} />
               <span className="badge bg-slate-100 text-slate-600">{report.categoryName}</span>
-              {report.isAnonymous && <span className="badge bg-slate-100 text-slate-500">🕶️ Anonymous</span>}
+              {report.isAnonymous && <span className="badge bg-slate-100 text-slate-500"><i className="fa-solid fa-user-secret" aria-hidden="true" /> Anonymous</span>}
             </div>
           </div>
           <div className="text-right text-sm text-slate-500">
@@ -182,7 +182,7 @@ export default function WorkflowReportDetail() {
         {/* AI suggestion (if present) */}
         {report.aiSuggestion.category && (
           <div className="mt-4 rounded-lg border border-purple-200 bg-purple-50 p-3 text-sm text-purple-800">
-            🤖 <strong>AI suggestion:</strong> {report.aiSuggestion.category} ({report.aiSuggestion.confidence ? `${Number(report.aiSuggestion.confidence).toFixed(0)}% confidence` : 'confidence n/a'})
+            <i className="fa-solid fa-robot" aria-hidden="true" /> <strong>AI suggestion:</strong> {report.aiSuggestion.category} ({report.aiSuggestion.confidence ? `${Number(report.aiSuggestion.confidence).toFixed(0)}% confidence` : 'confidence n/a'})
             {report.aiSuggestion.summary ? ` — ${report.aiSuggestion.summary}` : ''}
           </div>
         )}
@@ -193,7 +193,13 @@ export default function WorkflowReportDetail() {
         <section className="card p-6">
           <h2 className="mb-4 font-bold text-slate-900">Actions</h2>
 
-          {actionMsg && <div className="mb-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">{actionMsg}</div>}
+          {actionMsg && (
+            <div className={`mb-4 flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${actionMsg.startsWith('✔') ? 'bg-emerald-50 text-emerald-800' : actionMsg.startsWith('✖') ? 'bg-red-50 text-red-700' : 'bg-slate-50 text-slate-600'}`}>
+              {actionMsg.startsWith('✔') && <i className="fa-solid fa-circle-check" aria-hidden="true" />}
+              {actionMsg.startsWith('✖') && <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />}
+              <span>{actionMsg.replace(/^[✔✖]\s*/, '')}</span>
+            </div>
+          )}
 
           {/* Status transition */}
           {canAct ? <form onSubmit={handleTransition} className="rounded-lg border border-slate-200 p-4">
@@ -250,7 +256,7 @@ export default function WorkflowReportDetail() {
           </form> : <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">Read-only for your role. Only responsible officers can change status.</p>}
 
           {/* Deadline / SLA */}
-          {canAct && <form onSubmit={async (e) => { e.preventDefault(); if (!id || !deadline) return; setActionBusy(true); setActionMsg(''); try { await workflowApi.setDeadline(id, new Date(deadline).toISOString(), deadlineReason || undefined); setActionMsg('✅ Deadline saved.'); setDeadline(''); setDeadlineReason(''); } catch (err) { setActionMsg(err instanceof Error ? `⚠️ ${err.message}` : '⚠️ Could not save deadline'); } finally { setActionBusy(false); } }} className="mt-4 rounded-lg border border-slate-200 p-4">
+          {canAct && <form onSubmit={async (e) => { e.preventDefault(); if (!id || !deadline) return; setActionBusy(true); setActionMsg(''); try { await workflowApi.setDeadline(id, new Date(deadline).toISOString(), deadlineReason || undefined); setActionMsg('✔ Deadline saved.'); setDeadline(''); setDeadlineReason(''); } catch (err) { setActionMsg(err instanceof Error ? `✖ ${err.message}` : '✖ Could not save deadline'); } finally { setActionBusy(false); } }} className="mt-4 rounded-lg border border-slate-200 p-4">
             <h3 className="text-sm font-bold text-slate-800">Set / extend deadline</h3>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <input type="datetime-local" className="input" value={deadline} onChange={(e) => setDeadline(e.target.value)} required />
@@ -260,14 +266,14 @@ export default function WorkflowReportDetail() {
           </form>}
 
           {/* Internal note */}
-          {canAct && <form onSubmit={async (e) => { e.preventDefault(); if (!id || !internalNote.trim()) return; setActionBusy(true); setActionMsg(''); try { await workflowApi.internalNote(id, internalNote.trim()); setInternalNote(''); setActionMsg('✅ Internal note saved (staff only).'); } catch (err) { setActionMsg(err instanceof Error ? `⚠️ ${err.message}` : '⚠️ Could not save note'); } finally { setActionBusy(false); } }} className="mt-4 rounded-lg border border-slate-200 p-4">
+          {canAct && <form onSubmit={async (e) => { e.preventDefault(); if (!id || !internalNote.trim()) return; setActionBusy(true); setActionMsg(''); try { await workflowApi.internalNote(id, internalNote.trim()); setInternalNote(''); setActionMsg('✔ Internal note saved (staff only).'); } catch (err) { setActionMsg(err instanceof Error ? `✖ ${err.message}` : '✖ Could not save note'); } finally { setActionBusy(false); } }} className="mt-4 rounded-lg border border-slate-200 p-4">
             <h3 className="text-sm font-bold text-slate-800">Internal note (staff only)</h3>
             <textarea className="input mt-3 min-h-20" maxLength={2000} placeholder="Field observation, investigation note…" value={internalNote} onChange={(e) => setInternalNote(e.target.value)} />
             <button type="submit" className="btn-outline mt-3" disabled={actionBusy || !internalNote.trim()}>Save note</button>
           </form>}
 
           {/* Related / duplicate */}
-          {canAct && <form onSubmit={async (e) => { e.preventDefault(); if (!id || !relatedId) return; setActionBusy(true); setActionMsg(''); try { await workflowApi.linkRelated(id, Number(relatedId), relatedType); setActionMsg(relatedType === 'DUPLICATE' ? '✅ Marked as possible duplicate (advisory — nothing auto-closed).' : '✅ Related report linked.'); setRelatedId(''); } catch (err) { setActionMsg(err instanceof Error ? `⚠️ ${err.message}` : '⚠️ Could not link reports'); } finally { setActionBusy(false); } }} className="mt-4 rounded-lg border border-slate-200 p-4">
+          {canAct && <form onSubmit={async (e) => { e.preventDefault(); if (!id || !relatedId) return; setActionBusy(true); setActionMsg(''); try { await workflowApi.linkRelated(id, Number(relatedId), relatedType); setActionMsg(relatedType === 'DUPLICATE' ? '✔ Marked as possible duplicate (advisory — nothing auto-closed).' : '✔ Related report linked.'); setRelatedId(''); } catch (err) { setActionMsg(err instanceof Error ? `✖ ${err.message}` : '✖ Could not link reports'); } finally { setActionBusy(false); } }} className="mt-4 rounded-lg border border-slate-200 p-4">
             <h3 className="text-sm font-bold text-slate-800">Link related / mark duplicate</h3>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <input className="input" placeholder="Related report ID" value={relatedId} onChange={(e) => setRelatedId(e.target.value)} />
@@ -285,13 +291,19 @@ export default function WorkflowReportDetail() {
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">{priority.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
               </div>
             ) : <p className="mt-2 text-sm text-slate-400">Loading priority…</p>}
-            {canAct && <form onSubmit={async (e) => { e.preventDefault(); if (!id || !newPriority || !priorityReason.trim()) return; setAiBusy(true); setAiMsg(''); try { await aiApi.setPriority(Number(id), newPriority, priorityReason.trim()); const r = await aiApi.priority(Number(id)); setPriority(r.priority); setNewPriority(''); setPriorityReason(''); setAiMsg('✅ Priority updated with audit record.'); } catch (err) { setAiMsg(err instanceof Error ? `⚠️ ${err.message}` : '⚠️ Could not update priority'); } finally { setAiBusy(false); } }} className="mt-3 grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
+            {canAct && <form onSubmit={async (e) => { e.preventDefault(); if (!id || !newPriority || !priorityReason.trim()) return; setAiBusy(true); setAiMsg(''); try { await aiApi.setPriority(Number(id), newPriority, priorityReason.trim()); const r = await aiApi.priority(Number(id)); setPriority(r.priority); setNewPriority(''); setPriorityReason(''); setAiMsg('✔ Priority updated with audit record.'); } catch (err) { setAiMsg(err instanceof Error ? `✖ ${err.message}` : '✖ Could not update priority'); } finally { setAiBusy(false); } }} className="mt-3 grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
               <select className="input" value={newPriority} onChange={(e) => setNewPriority(e.target.value)}><option value="">New priority…</option><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select>
               <input className="input" placeholder="Mandatory reason for override" value={priorityReason} onChange={(e) => setPriorityReason(e.target.value)} />
               <button className="btn-outline" disabled={aiBusy || !newPriority || !priorityReason.trim()}>Adjust</button>
             </form>}
-            {aiMsg && <p className="mt-2 text-sm text-slate-600">{aiMsg}</p>}
-            <Link to={`/ai/reports/${id}`} className="mt-2 inline-block text-sm font-semibold text-rwanda-blue hover:underline">Open full AI analysis →</Link>
+            {aiMsg && (
+              <p className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+                {aiMsg.startsWith('✔') && <i className="fa-solid fa-circle-check text-emerald-600" aria-hidden="true" />}
+                {aiMsg.startsWith('✖') && <i className="fa-solid fa-triangle-exclamation text-red-600" aria-hidden="true" />}
+                <span>{aiMsg.replace(/^[✔✖]\s*/, '')}</span>
+              </p>
+            )}
+            <Link to={`/ai/reports/${id}`} className="mt-2 inline-block text-sm font-semibold text-brand-primary hover:underline">Open full AI analysis</Link>
           </div>
 
           {/* Public update */}
@@ -330,7 +342,7 @@ export default function WorkflowReportDetail() {
 
             {report.feedback && (
               <div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm">
-                <strong className="text-amber-700">Citizen feedback:</strong> {'★'.repeat(report.feedback.rating)}{'☆'.repeat(5 - report.feedback.rating)}
+                <strong className="text-amber-700">Citizen feedback:</strong>{' '}<span className="text-amber-500">{Array.from({ length: report.feedback.rating }, (_, i) => <i key={`sf${i}`} className="fa-solid fa-star" aria-hidden="true" />)}{Array.from({ length: 5 - report.feedback.rating }, (_, i) => <i key={`se${i}`} className="fa-regular fa-star" aria-hidden="true" />)}</span>
                 {report.feedback.comment ? ` — “${report.feedback.comment}”` : ''}
               </div>
             )}

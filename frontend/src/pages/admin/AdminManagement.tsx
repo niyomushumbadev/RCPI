@@ -12,7 +12,7 @@ export default function AdminManagement() {
   const [provinceId, setProvinceId] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [category, setCategory] = useState({ name: '', nameRw: '', nameFr: '', icon: '📌', color: '#0067b1' });
+  const [category, setCategory] = useState({ name: '', nameRw: '', nameFr: '', icon: 'fa-thumbtack', color: '#1D4ED8' });
   const [department, setDepartment] = useState({ name: '', nameRw: '', nameFr: '', email: '', phone: '' });
   const [alert, setAlert] = useState({ title: '', message: '', severity: 'INFO', category: '', districtId: '' });
   const [permissionData, setPermissionData] = useState<{ permissions: Array<{ id: number; code: string; name: string; description: string | null }>; roles: Array<{ id: number; name: string; description: string | null; permissions: string[] }> } | null>(null);

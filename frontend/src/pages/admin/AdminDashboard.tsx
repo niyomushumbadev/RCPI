@@ -42,13 +42,13 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon="👥" label="Total users" value={data.stats.totalUsers} tone="blue" />
-        <StatCard icon="🙋" label="Citizens" value={data.stats.totalCitizens} tone="green" />
-        <StatCard icon="📋" label="Total reports" value={data.stats.totalReports} tone="slate" />
+        <StatCard icon="fa-users" label="Total users" value={data.stats.totalUsers} tone="blue" />
+        <StatCard icon="fa-user-check" label="Citizens" value={data.stats.totalCitizens} tone="green" />
+        <StatCard icon="fa-clipboard-list" label="Total reports" value={data.stats.totalReports} tone="slate" />
         <StatCard icon="⏳" label="Pending reports" value={data.stats.pendingReports} tone="amber" />
-        <StatCard icon="✅" label="Resolved reports" value={data.stats.resolvedReports} tone="green" />
-        <StatCard icon="🗂️" label="Categories" value={data.stats.totalCategories} tone="blue" />
-        <StatCard icon="🏛️" label="Departments" value={data.stats.totalDepartments} tone="slate" />
+        <StatCard icon="fa-circle-check" label="Resolved reports" value={data.stats.resolvedReports} tone="green" />
+        <StatCard icon="fa-box-archive" label="Categories" value={data.stats.totalCategories} tone="blue" />
+        <StatCard icon="fa-landmark" label="Departments" value={data.stats.totalDepartments} tone="slate" />
       </div>
 
       <section className="gov-card p-5">

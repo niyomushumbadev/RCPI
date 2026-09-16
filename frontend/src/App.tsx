@@ -6,7 +6,6 @@ import Layout from './components/Layout';
 
 // Public pages (no auth)
 import Landing from './pages/public/Landing';
-import Presentation from './pages/public/Presentation';
 import ForbiddenPage from './pages/public/Forbidden';
 
 // Auth pages
@@ -74,7 +73,6 @@ export default function App() {
         <Routes>
           {/* ── Public ── */}
           <Route path="/" element={<Landing />} />
-          <Route path="/presentation" element={<Presentation />} />
           <Route path="/forbidden" element={<RequireAuth roles={AUTHENTICATED_ROLES}><ForbiddenPage /></RequireAuth>} />
 
           {/* ── Auth ── */}

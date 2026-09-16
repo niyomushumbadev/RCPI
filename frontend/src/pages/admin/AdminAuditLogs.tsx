@@ -59,7 +59,7 @@ export default function AdminAuditLogs() {
       {loading && <Spinner />}
 
       {!loading && !error && data && data.logs.length === 0 && (
-        <EmptyState icon="🗂️" title="No audit entries" hint="Adjust the filters to see more results." />
+        <EmptyState icon="fa-box-archive" title="No audit entries" hint="Adjust the filters to see more results." />
       )}
 
       {!loading && !error && data && data.logs.length > 0 && (

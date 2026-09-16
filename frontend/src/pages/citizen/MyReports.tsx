@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { citizenApi } from '../../lib/api';
 import type { ReportListItem } from '../../types';
 import { StatusBadge, UrgencyBadge, formatDate } from '../../lib/format';
+import { CategoryIcon } from '../../components/icons';
 import { PageHeader, Spinner, ErrorBox, EmptyState, Pagination } from '../../components/ui';
 
 const FILTERS = [
@@ -69,14 +70,14 @@ export default function MyReports() {
       {loading && <Spinner />}
 
       {!loading && !error && data && data.reports.length === 0 && (
-        <EmptyState icon="📭" title="No reports found" hint="Try a different filter, or submit a new report to get started." />
+        <EmptyState icon="fa-inbox" title="No reports found" hint="Try a different filter, or submit a new report to get started." />
       )}
 
       {!loading && !error && data && data.reports.length > 0 && (
         <div className="card divide-y divide-slate-100">
           {data.reports.map((r) => (
             <Link key={r.id} to={`/reports/${r.id}`} className="flex items-center gap-4 p-4 hover:bg-slate-50">
-              <span className="text-2xl">{r.categoryIcon ?? '📌'}</span>
+              <span className="w-8 text-center text-2xl text-brand-primary"><CategoryIcon name={r.categoryName} dbIcon={r.categoryIcon} /></span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-semibold text-slate-800">{r.title}</p>

@@ -200,7 +200,7 @@ export default function AdminUsers() {
       {loading && <Spinner />}
 
       {!loading && !error && data && data.users.length === 0 && (
-        <EmptyState icon="👥" title="No users found" hint="Adjust the filters or create a new staff user." />
+        <EmptyState icon="fa-users" title="No users found" hint="Adjust the filters or create a new staff user." />
       )}
 
       {!loading && !error && data && data.users.length > 0 && (

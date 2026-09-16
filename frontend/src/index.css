@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --rwanda-blue: #00a1de;
-  --rwanda-green: #20603d;
-  --rwanda-yellow: #fad201;
+  --rwanda-blue: #1d4ed8;
+  --rwanda-green: #0f7b4f;
+  --rwanda-yellow: #d9b64a;
   --rwanda-white: #ffffff;
-  --rwanda-slate: #0f172a;
-  --gov-border: rgba(32, 96, 61, 0.14);
+  --rwanda-slate: #0b1f3a;
+  --gov-border: rgba(15, 123, 79, 0.14);
 }
 
 @layer base {
@@ -19,7 +19,9 @@
 
   body {
     @apply bg-slate-100 text-slate-800;
-    background: linear-gradient(180deg, rgba(0, 161, 222, 0.06), rgba(32, 96, 61, 0.04) 35%, rgba(248, 250, 252, 1) 100%);
+    background:
+      radial-gradient(1200px 400px at 80% -10%, rgba(29, 78, 216, 0.07), transparent 60%),
+      linear-gradient(180deg, rgba(11, 31, 58, 0.05), rgba(15, 123, 79, 0.03) 35%, rgba(248, 250, 252, 1) 100%);
     font-family: Inter, 'Segoe UI', sans-serif;
   }
 
@@ -31,26 +33,26 @@
 @layer components {
   .gov-strip {
     height: 5px;
-    background: linear-gradient(90deg, #00a1de 0 50%, #fad201 50% 75%, #20603d 75% 100%);
+    background: linear-gradient(90deg, var(--rwanda-blue) 0 55%, var(--rwanda-yellow) 55% 78%, var(--rwanda-green) 78% 100%);
   }
 
   .dashboard-topbar {
-    background: #00a1de;
-    box-shadow: 0 3px 0 rgba(32, 96, 61, 0.18);
+    background: linear-gradient(90deg, #0b1f3a 0%, #122b4e 100%);
+    box-shadow: 0 3px 0 rgba(217, 182, 74, 0.35);
   }
 
   .dashboard-sidebar {
     min-height: calc(100vh - 69px);
-    background: #263c54;
-    box-shadow: inset -12px 0 22px rgba(15, 23, 42, 0.12);
+    background: linear-gradient(180deg, #0b1f3a 0%, #102a4c 60%, #0d2440 100%);
+    box-shadow: inset -12px 0 22px rgba(4, 12, 24, 0.35);
   }
 
   .dashboard-content {
-    background: rgba(248, 250, 252, 0.76);
+    background: rgba(248, 250, 252, 0.82);
   }
 
   .gov-shell {
-    @apply rounded border border-slate-200 bg-white shadow-[0_12px_28px_rgba(15,23,42,0.07)];
+    @apply rounded border border-slate-200 bg-white shadow-premium-sm;
   }
 
   .gov-panel {
@@ -62,11 +64,11 @@
   }
 
   .gov-card {
-    @apply rounded border border-slate-200 bg-white shadow-[0_8px_20px_rgba(15,23,42,0.04)];
+    @apply rounded border border-slate-200 bg-white shadow-premium-sm;
   }
 
   .gov-header {
-    background: linear-gradient(120deg, rgba(4, 31, 58, 0.96), rgba(32, 96, 61, 0.96));
+    background: linear-gradient(120deg, rgba(11, 31, 58, 0.97), rgba(15, 123, 79, 0.94));
   }
 
   .btn {
@@ -74,11 +76,11 @@
   }
 
   .btn-primary {
-    @apply btn bg-rwanda-blue text-white shadow-[0_10px_24px_rgba(0,161,222,0.25)] hover:bg-sky-600;
+    @apply btn bg-brand-primary text-white shadow-premium-sm hover:bg-brand-primaryDeep;
   }
 
   .btn-success {
-    @apply btn bg-rwanda-green text-white shadow-[0_10px_24px_rgba(32,96,61,0.2)] hover:bg-green-800;
+    @apply btn bg-rwanda-green text-white shadow-premium-sm hover:bg-emerald-800;
   }
 
   .btn-danger {
@@ -86,11 +88,11 @@
   }
 
   .btn-outline {
-    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:border-brand-primary/40 hover:bg-slate-50 hover:text-brand-primary;
   }
 
   .input {
-    @apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 shadow-sm transition focus:border-rwanda-blue focus:outline-none focus:ring-4 focus:ring-sky-100;
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 shadow-sm transition focus:border-brand-primary focus:outline-none focus:ring-4 focus:ring-blue-100;
   }
 
   .label {
@@ -102,6 +104,16 @@
   }
 
   .card {
-    @apply rounded border border-slate-200 bg-white shadow-[0_8px_20px_rgba(15,23,42,0.04)];
+    @apply rounded border border-slate-200 bg-white shadow-premium-sm;
+  }
+
+  /* Premium icon chip used in page headers and hero sections */
+  .premium-icon-chip {
+    @apply flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-navy to-brand-primary text-sm text-white shadow-premium-sm;
+  }
+
+  /* Gold accent link */
+  .link-gold {
+    @apply font-semibold text-brand-goldDeep hover:text-brand-gold hover:underline;
   }
 }

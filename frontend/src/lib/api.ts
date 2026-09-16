@@ -407,6 +407,8 @@ export const workflowApi = {
 
   reopenRequests: () =>
     request<{ requests: Array<{ id: number; reportId: number; reason: string; status: string; actorName: string | null; createdAt: string; report: { id: number; reference: string; title: string; status: string } | null }> }>('/workflow/reopen-requests'),
+  reviewReopenRequest: (id: number, decision: 'APPROVE' | 'DECLINE', note?: string) =>
+    request<{ requestId: number; decision: string }>(`/workflow/reopen-requests/${id}/review`, { method: 'POST', body: { decision, note } }),
 };
 
 export const intelligenceApi = {

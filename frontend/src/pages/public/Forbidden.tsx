@@ -9,7 +9,7 @@ export default function ForbiddenPage() {
       <div className="gov-strip" />
       <div className="mx-auto flex min-h-[calc(100vh-8px)] max-w-xl items-center justify-center px-4 py-10">
         <div className="gov-shell w-full p-8 text-center">
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-3xl">🚫</div>
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-3xl"><i className="fa-solid fa-ban" aria-hidden="true" /></div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">403 forbidden</p>
           <h1 className="mt-3 text-3xl font-black text-slate-900">Access denied</h1>
           <p className="mt-3 text-sm text-slate-600">

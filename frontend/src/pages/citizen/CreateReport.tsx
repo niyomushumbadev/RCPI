@@ -167,7 +167,7 @@ export default function NewReport() {
             {aiSuggestion && (
               <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4 text-sm text-purple-900">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="font-semibold">🤖 AI assistant suggestion</p>
+                  <p className="font-semibold"><i className="fa-solid fa-robot" aria-hidden="true" /> AI assistant suggestion</p>
                   <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-purple-700">{aiSuggestion.confidence}% confidence</span>
                 </div>
                 <p className="mt-2"><strong>Likely category:</strong> {aiSuggestion.category}</p>
@@ -272,7 +272,8 @@ export default function NewReport() {
               <input id="lng" className="input" value={form.longitude} onChange={(e) => set('longitude', e.target.value)} placeholder="30.0619" />
             </div>
             <button type="button" className="btn-outline" onClick={handleUseMyLocation} disabled={locating}>
-              {locating ? 'Locating…' : '📍 Use my location'}
+              {locating ? 'Locating…' : 'Use my location'}
+              {!locating && <i className="fa-solid fa-location-dot ms-1" aria-hidden="true" />}
             </button>
           </div>
         </section>

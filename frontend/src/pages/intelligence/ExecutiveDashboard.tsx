@@ -42,13 +42,13 @@ export default function ExecutiveDashboard() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon="📋" label="Verified reports (total)" value={data.stats.total} tone="blue" />
-        <StatCard icon="🔓" label="Open reports" value={data.stats.open} tone="amber" />
-        <StatCard icon="✅" label="Resolved reports" value={data.stats.resolved} tone="green" />
-        <StatCard icon="🚨" label="Critical load" value={data.stats.critical} tone="red" />
-        <StatCard icon="⏰" label="Overdue (48h+)" value={data.stats.overdue} tone="red" />
-        <StatCard icon="📈" label="Resolution rate" value={`${data.stats.resolutionRate}%`} tone="slate" />
-        <StatCard icon="⏱️" label="Avg resolution (h)" value={data.stats.avgResolutionHours ?? '—'} tone="slate" />
+        <StatCard icon="fa-clipboard-list" label="Verified reports (total)" value={data.stats.total} tone="blue" />
+        <StatCard icon="fa-lock-open" label="Open reports" value={data.stats.open} tone="amber" />
+        <StatCard icon="fa-circle-check" label="Resolved reports" value={data.stats.resolved} tone="green" />
+        <StatCard icon="fa-triangle-exclamation" label="Critical load" value={data.stats.critical} tone="red" />
+        <StatCard icon="fa-clock" label="Overdue (48h+)" value={data.stats.overdue} tone="red" />
+        <StatCard icon="fa-arrow-trend-up" label="Resolution rate" value={`${data.stats.resolutionRate}%`} tone="slate" />
+        <StatCard icon="fa-stopwatch" label="Avg resolution (h)" value={data.stats.avgResolutionHours ?? '—'} tone="slate" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

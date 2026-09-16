@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { citizenApi } from '../../lib/api';
 import type { CitizenDashboard as DashboardData } from '../../types';
 import { StatusBadge } from '../../lib/format';
+import { Icon } from '../../components/icons';
 import { PageHeader, Spinner, DashboardError, StatCard, EmptyState } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { getLanguage, translations } from '../../translations';
@@ -27,20 +28,20 @@ export default function CitizenDashboard() {
   if (!data) return null;
 
   const quickAccessCards = [
-    { to: '/citizen/report/create', label: 'Report a problem', icon: '📝', hint: 'Problem category + description' },
-    { to: '/citizen/report/create', label: 'Take/upload photo', icon: '📷', hint: 'Attach supporting evidence' },
-    { to: '/citizen/report/create', label: 'Upload video', icon: '🎥', hint: 'Add a short video clip' },
-    { to: '/citizen/report/create', label: 'GPS location', icon: '📍', hint: 'Use current location' },
-    { to: '/citizen/reports', label: 'My reports', icon: '📋', hint: 'Track all submissions' },
-    { to: '/citizen/assistant', label: 'AI assistant', icon: '🤖', hint: 'Ask how to use R-CPI' },
-    { to: '/notifications', label: 'Notifications', icon: '🔔', hint: 'Status updates and alerts' },
-    { to: '/profile', label: 'Profile', icon: '👤', hint: 'Account and contact info' },
+    { to: '/citizen/report/create', label: 'Report a problem', icon: 'fa-file-pen', hint: 'Problem category + description' },
+    { to: '/citizen/report/create', label: 'Take/upload photo', icon: 'fa-camera', hint: 'Attach supporting evidence' },
+    { to: '/citizen/report/create', label: 'Upload video', icon: 'fa-video', hint: 'Add a short video clip' },
+    { to: '/citizen/report/create', label: 'GPS location', icon: 'fa-location-dot', hint: 'Use current location' },
+    { to: '/citizen/reports', label: 'My reports', icon: 'fa-clipboard-list', hint: 'Track all submissions' },
+    { to: '/citizen/assistant', label: 'AI assistant', icon: 'fa-robot', hint: 'Ask how to use R-CPI' },
+    { to: '/notifications', label: 'Notifications', icon: 'fa-bell', hint: 'Status updates and alerts' },
+    { to: '/profile', label: 'Profile', icon: 'fa-user', hint: 'Account and contact info' },
   ];
 
   return (
     <div>
       <PageHeader
-        title={`${t.welcome} ${data.citizen.firstName} 👋`}
+        title={`${t.welcome} ${data.citizen.firstName}`}
         subtitle={t.dashboardSubtitle}
         actions={
           <div className="flex flex-wrap gap-2">
@@ -68,8 +69,8 @@ export default function CitizenDashboard() {
               to={card.to}
               className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-rwanda-blue/30 hover:bg-rwanda-blue/5"
             >
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-xl shadow-sm">
-                {card.icon}
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-base text-brand-primary shadow-sm">
+                <Icon name={card.icon} />
               </div>
               <div className="font-semibold text-slate-800">{card.label}</div>
               <div className="mt-1 text-xs text-slate-500">{card.hint}</div>
@@ -80,12 +81,12 @@ export default function CitizenDashboard() {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard icon="📋" label={t.totalReports} value={data.stats.total} tone="blue" />
+        <StatCard icon="fa-clipboard-list" label={t.totalReports} value={data.stats.total} tone="blue" />
         <StatCard icon="⏳" label={t.awaitingReview} value={data.stats.submitted} tone="amber" />
-        <StatCard icon="🔍" label={t.underReview} value={data.stats.underReview} tone="blue" />
-        <StatCard icon="🔧" label={t.inProgress} value={data.stats.inProgress} tone="slate" />
-        <StatCard icon="✅" label={t.resolved} value={data.stats.resolved} tone="green" />
-        <StatCard icon="🚫" label={t.rejected} value={data.stats.rejected} tone="red" />
+        <StatCard icon="fa-magnifying-glass" label={t.underReview} value={data.stats.underReview} tone="blue" />
+        <StatCard icon="fa-screwdriver-wrench" label={t.inProgress} value={data.stats.inProgress} tone="slate" />
+        <StatCard icon="fa-circle-check" label={t.resolved} value={data.stats.resolved} tone="green" />
+        <StatCard icon="fa-ban" label={t.rejected} value={data.stats.rejected} tone="red" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
@@ -97,7 +98,7 @@ export default function CitizenDashboard() {
           </div>
           {data.recentReports.length === 0 ? (
             <EmptyState
-              icon="📝"
+              icon="fa-file-pen"
               title="No reports yet"
               hint="When you notice a problem in your community — a broken water point, a damaged road — submit your first report."
             />
@@ -125,13 +126,13 @@ export default function CitizenDashboard() {
           <div className="card p-5">
             <h2 className="mb-3 font-bold text-slate-900">Quick actions</h2>
             <div className="space-y-2">
-              <Link to="/citizen/report/create" className="btn-primary w-full">📝 {t.reportProblem}</Link>
-              <Link to="/map" className="btn-outline w-full">🗺️ {t.communityMap}</Link>
-              <Link to="/community" className="btn-outline w-full">🌍 {t.communityInsights}</Link>
+              <Link to="/citizen/report/create" className="btn-primary w-full"><i className="fa-solid fa-file-pen" aria-hidden="true" /> {t.reportProblem}</Link>
+              <Link to="/map" className="btn-outline w-full"><i className="fa-solid fa-map-location-dot" aria-hidden="true" /> {t.communityMap}</Link>
+              <Link to="/community" className="btn-outline w-full"><i className="fa-solid fa-globe" aria-hidden="true" /> {t.communityInsights}</Link>
             </div>
           </div>
           <div className="card bg-rwanda-blue/5 p-5">
-            <h2 className="mb-2 font-bold text-slate-900">🔔 Notifications</h2>
+            <h2 className="mb-2 font-bold text-slate-900"><i className="fa-solid fa-bell" aria-hidden="true" /> Notifications</h2>
             <p className="text-sm text-slate-600">
               You have <strong>{data.unreadNotifications}</strong> unread notification{data.unreadNotifications === 1 ? '' : 's'}.
             </p>
