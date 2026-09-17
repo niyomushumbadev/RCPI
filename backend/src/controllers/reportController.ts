@@ -5,6 +5,61 @@ import { audit } from '../services/audit.service';
 import { notify } from '../services/notification.service';
 import { canTransition, createStatusHistoryEntry, getNextReferenceNumber } from '../services/report.service';
 
+// GET /api/v1/reports/track/:reference — public status tracker (privacy-safe).
+// Serves anonymous reporters and community members: returns only what is safe
+// to publish — no citizen identity, no evidence, no internal notes, no AI data.
+export async function trackReportByReference(req: Request, res: Response) {
+  const reference = String(req.params.reference ?? '').trim().toUpperCase();
+  // Accept RCP-2026-000245 or the bare number 000245 / 245.
+  const match = reference.match(/^(?:RCP-\d{4}-)?(\d{1,6})$/);
+  if (!match) return fail(res, 'Enter a reference like RCP-2026-000245 or just the number.', 422);
+  const id = Number(match[1]);
+
+  const report = await prisma.report.findUnique({
+    where: { id },
+    select: {
+      id: true, reference: true, title: true, description: true, status: true, urgency: true,
+      category: { select: { name: true, icon: true } },
+      province: { select: { name: true } },
+      district: { select: { name: true } },
+      sector: { select: { name: true } },
+      department: { select: { name: true } },
+      deadline: true,
+      createdAt: true, updatedAt: true, resolvedAt: true,
+      statusHistory: { orderBy: { createdAt: 'asc' }, select: { toStatus: true, note: true, actorName: true, createdAt: true } },
+      updates: { where: { isPublic: true }, orderBy: { createdAt: 'desc' }, select: { message: true, createdAt: true } },
+    },
+  });
+
+  if (!report) return notFound(res, 'No report found with that reference. Check the number and try again.');
+
+  return ok(res, {
+    report: {
+      id: report.id,
+      reference: report.reference,
+      title: report.title,
+      description: report.description.length > 400 ? `${report.description.slice(0, 400)}…` : report.description,
+      status: report.status,
+      urgency: report.urgency,
+      categoryName: report.category.name,
+      categoryIcon: report.category.icon,
+      location: [report.province.name, report.district.name, report.sector?.name].filter(Boolean).join(' / '),
+      department: report.department?.name ?? null,
+      deadline: report.deadline,
+      createdAt: report.createdAt,
+      updatedAt: report.updatedAt,
+      resolvedAt: report.resolvedAt,
+      timeline: report.statusHistory.map((entry) => ({
+        toStatus: entry.toStatus,
+        note: entry.note,
+        actorName: entry.actorName,
+        createdAt: entry.createdAt,
+      })),
+      updates: report.updates.map((u) => ({ message: u.message, createdAt: u.createdAt })),
+    },
+  });
+}
+
 export async function listReports(req: Request, res: Response) {
   const status = typeof req.query.status === 'string' ? req.query.status : undefined;
   const page = Math.max(1, Number(req.query.page ?? '1'));

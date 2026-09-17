@@ -2,8 +2,20 @@ import bcrypt from 'bcryptjs';
 import type { Request, Response } from 'express';
 import { prisma } from '../config/db';
 import { env } from '../config/env';
-import { ok, fail } from '../utils/helpers';
+import { ok, fail, notFound } from '../utils/helpers';
 import { audit } from '../services/audit.service';
+import { sendCredentialsEmail, emailConfigured } from '../services/email.service';
+import { runDeadlineScan } from '../services/deadline.service';
+import { sendSMS, smsConfigured, normalizeRwandanPhone } from '../services/sms.service';
+
+// POST /api/v1/admin/deadline-scan — manual trigger for the deadline monitor.
+// The scheduler runs automatically every 30 min; this lets SYSTEM_ADMIN /
+// NATIONAL_ADMIN force a pass (e.g. after mass deadline edits) and read the
+// counts. Full results land in each recipient's notification list.
+export async function triggerDeadlineScan(_req: Request, res: Response) {
+  const result = await runDeadlineScan();
+  return ok(res, result, `Deadline scan complete: ${result.approaching} approaching, ${result.overdue} overdue (of ${result.scanned} reports with deadlines)`);
+}
 
 // GET /api/v1/admin/dashboard
 export async function getAdminDashboard(req: Request, res: Response) {
@@ -104,7 +116,66 @@ export async function createUser(req: Request, res: Response) {
   });
 
   await audit(req, { action: 'USER_CREATED', resourceType: 'USER', resourceId: String(user.id), detail: `${user.email} role=${role.name}` });
-  return ok(res, { user: { id: user.id, email: user.email, role: role.name } }, 'User created successfully', 201);
+
+  // Email the sign-in credentials (Resend when configured; console log in dev).
+  const emailSent = await sendCredentialsEmail({
+    to: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    role: role.name,
+    temporaryPassword: String(password),
+  });
+
+  // SMS the temporary password too when a Rwandan phone was provided and
+  // Twilio is configured (best-effort — never blocks account creation).
+  let smsSent = false;
+  const normalizedPhone = phone ? normalizeRwandanPhone(String(phone)) : null;
+  if (normalizedPhone && smsConfigured()) {
+    smsSent = await sendSMS({
+      to: normalizedPhone,
+      message: `R-CPI: Account created (${role.name}). Email ${user.email}, temp password ${password}. Sign in at ${env.frontendUrl}/login and change it immediately.`,
+    });
+  }
+
+  return ok(
+    res,
+    {
+      user: { id: user.id, email: user.email, role: role.name },
+      credentialsEmail: emailSent ? 'SENT' : emailConfigured() ? 'FAILED' : 'DEV_LOGGED',
+      credentialsSMS: smsSent ? 'SENT' : smsConfigured() ? 'SKIPPED_NO_PHONE' : 'DEV_LOGGED',
+    },
+    emailSent || smsSent
+      ? 'User created successfully. Sign-in credentials delivered.'
+      : 'User created successfully. Email/SMS not configured — credentials shown in the app / dev console.',
+    201
+  );
+}
+
+// DELETE /api/v1/admin/users/:id — permanently remove a user account.
+// Guards:
+//   • SYSTEM_ADMIN only (route-level) and never the caller's own account.
+//   • Users who are the citizen of record on reports cannot be deleted —
+//     reports must keep their author for integrity; deactivate instead.
+//   • Sessions (refresh tokens) and role links are removed with the account.
+//   • Action is written to the audit log before the row disappears.
+export async function deleteUser(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return fail(res, 'Invalid user id', 422);
+  if (req.user!.sub === id) return fail(res, 'You cannot delete your own account', 422);
+
+  const user = await prisma.user.findUnique({ where: { id }, include: { role: true } });
+  if (!user) return notFound(res, 'User not found');
+
+  const reportCount = await prisma.report.count({ where: { citizenId: id } });
+  if (reportCount > 0) {
+    return fail(res, `This user has ${reportCount} report(s) filed under their account and cannot be deleted. Deactivate the account instead to preserve report history.`, 409);
+  }
+
+  await prisma.refreshToken.updateMany({ where: { userId: id, revokedAt: null }, data: { revokedAt: new Date() } });
+  await audit(req, { action: 'USER_DELETED', resourceType: 'USER', resourceId: String(id), detail: `${user.email} role=${user.role.name}` });
+  await prisma.user.delete({ where: { id } });
+
+  return ok(res, null, `User ${user.firstName} ${user.lastName} (${user.email}) deleted`);
 }
 
 // PUT /api/v1/admin/users/:id/status — activate/deactivate

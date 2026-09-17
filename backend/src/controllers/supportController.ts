@@ -210,13 +210,19 @@ export async function deleteNotification(req: Request, res: Response) {
 
 // ─── Community alerts (public) ───
 
-// GET /api/v1/alerts
+// GET /api/v1/alerts (public — active & unexpired only)
 export async function getPublicAlerts(_req: Request, res: Response) {
   const alerts = await prisma.communityAlert.findMany({
     where: { isActive: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
     orderBy: { createdAt: 'desc' },
     take: 30,
   });
+  return ok(res, { alerts });
+}
+
+// GET /api/v1/alerts/manage (staff) — full list for dashboards, incl. inactive/expired
+export async function listAllAlerts(_req: Request, res: Response) {
+  const alerts = await prisma.communityAlert.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
   return ok(res, { alerts });
 }
 

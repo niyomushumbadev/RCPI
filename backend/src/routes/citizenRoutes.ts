@@ -24,6 +24,7 @@ router.get('/reports/:id/timeline', citizenOnly, citizen.getReportTimeline);
 router.get('/reports/:id/messages', citizenOnly, citizen.getMessages);
 router.post('/reports/:id/messages', citizenOnly, citizen.sendMessage);
 router.post('/reports/:id/feedback', citizenOnly, citizen.submitFeedback);
+router.post('/reports/:id/confirm-resolution', citizenOnly, citizen.confirmResolution);
 router.post('/reports/:id/reopen', citizenOnly, citizen.requestReopen);
 
 // Activity

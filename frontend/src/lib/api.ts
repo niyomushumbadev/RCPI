@@ -176,7 +176,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
           : res.status >= 500
             ? 'The R-CPI API is currently unavailable. Please start the backend server and refresh the page.'
             : 'Request failed';
-    throw new ApiError(res.status === 401 ? fallback : (json.message ?? fallback), res.status);
+    // On unauthenticated endpoints (login/register) the server's own message
+    // is user-facing ("Invalid email or password", "Account locked") — show it
+    // instead of the generic expired-session text.
+    const message = !auth && json.message ? json.message : res.status === 401 ? fallback : (json.message ?? fallback);
+    throw new ApiError(message, res.status);
   }
   return json.data as T;
 }
@@ -324,6 +328,10 @@ export const citizenApi = {
   reopen: (id: number | string, reason: string) =>
     request<null>(`/citizen/reports/${id}/reopen`, { method: 'POST', body: { reason } }),
 
+  /** Citizen confirms the problem is actually solved (closes the loop). */
+  confirmResolution: (id: number | string) =>
+    request<{ confirmedAt: string }>(`/citizen/reports/${id}/confirm-resolution`, { method: 'POST' }),
+
   // Task 3 §13 — citizen edit of own eligible report (server enforces eligibility).
   updateReport: (id: number | string, payload: { title?: string; description?: string; sectorId?: number | null; cellId?: number | null; latitude?: number | null; longitude?: number | null; locationDescription?: string | null; affectedPeople?: number | null; vulnerableGroup?: boolean }) =>
     request<{ report: { id: number; reference: string; status: string } }>(`/citizen/reports/${id}`, { method: 'PUT', body: payload }),
@@ -377,13 +385,58 @@ export const createReport = (input: CreateReportInput) =>
     { method: 'POST', body: input }
   );
 
+// Public report tracker — no auth; privacy-filtered payload from the API.
+export interface PublicTrackedReport {
+  id: number;
+  reference: string;
+  title: string;
+  description: string;
+  status: string;
+  urgency: string;
+  categoryName: string;
+  categoryIcon: string | null;
+  location: string;
+  department: string | null;
+  deadline: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+  timeline: Array<{ toStatus: string; note: string | null; actorName: string | null; createdAt: string }>;
+  updates: Array<{ message: string; createdAt: string }>;
+}
+
+export const trackApi = {
+  lookup: (reference: string) =>
+    request<{ report: PublicTrackedReport }>(`/reports/track/${encodeURIComponent(reference.trim())}`, { auth: false }),
+};
+
 // ─── Workflow (officer / government) ───
 
 export const workflowApi = {
   stats: () => request<WorkflowStats>('/workflow/stats'),
 
+  /** Assignable officers/admins for the review workbench. */
+  staff: () =>
+    request<{ staff: Array<{ id: number; name: string; email: string; role: string; district: string | null }> }>('/workflow/staff'),
+
+  /** (Re)assign a report to a specific officer/admin with instructions, deadline and priority (spec §4). */
+  assign: (id: number | string, officerId: number, note?: string, priority?: string, deadline?: string) =>
+    request<{ report: { id: number; reference: string; assignedOfficerId: number; status?: string } }>(`/workflow/reports/${id}/assign`, {
+      method: 'POST',
+      body: { officerId, note, priority, deadline },
+    }),
+
   reports: (status?: string, page = 1) =>
     request<{ reports: WorkflowReport[]; pagination: Pagination }>('/workflow/reports', { query: { status, page } }),
+
+  /** Citizen-confirmed, CLOSED and archived reports — permanent audit record (spec §14). */
+  archive: (q?: string, page = 1) =>
+    request<{ reports: Array<{
+      id: number; reference: string; title: string; status: string; categoryName: string; categoryIcon: string | null;
+      district: string; department: string | null; citizenName: string; confirmedByName: string | null;
+      confirmedAt: string | null; archivedAt: string | null; closedAt: string | null; resolvedAt: string | null;
+      resolutionDescription: string | null; createdAt: string;
+    }>; pagination: Pagination }>('/workflow/archive', { query: { q, page } }),
 
   report: (id: number | string) => request<{ report: WorkflowReportDetail }>(`/workflow/reports/${id}`),
 
@@ -392,6 +445,14 @@ export const workflowApi = {
       method: 'POST',
       body: { toStatus, note, departmentId },
     }),
+
+  /** "Assigned Reports" worklist for the signed-in administrator (spec §4, §12). */
+  myAssignments: (status?: string) =>
+    request<{ assignments: Array<{
+      id: number; status: string; priority: string | null; deadline: string | null; instruction: string | null;
+      assignedByName: string | null; assignedAt: string; acceptedAt: string | null; completedAt: string | null;
+      report: { id: number; reference: string; title: string; status: string; urgency: string; priority: string | null; deadline: string | null; district: string | null; categoryName: string | null; categoryIcon: string | null } | null;
+    }> }>('/workflow/assignments', { query: { status } }),
 
   postUpdate: (id: number | string, message: string) =>
     request<null>(`/workflow/reports/${id}/updates`, { method: 'POST', body: { message } }),
@@ -407,6 +468,29 @@ export const workflowApi = {
 
   linkRelated: (id: number | string, relatedReportId: number, relationType: string, note?: string) =>
     request<null>(`/workflow/reports/${id}/related`, { method: 'POST', body: { relatedReportId, relationType, note } }),
+
+  // ── Resolution workflow (spec §4-§8) ──
+  acceptAssignment: (id: number | string) =>
+    request<{ assignment: { id: number; status: string; acceptedAt: string } }>(`/reports/${id}/accept-assignment`, { method: 'POST' }),
+
+  startWork: (id: number | string) =>
+    request<{ report: { id: number; reference: string; status: string } }>(`/reports/${id}/start`, { method: 'POST' }),
+
+  resolveReport: (id: number | string, resolutionDescription: string) =>
+    request<{ report: { id: number; reference: string; status: string; resolvedAt: string } }>(`/reports/${id}/resolve`, { method: 'POST', body: { resolutionDescription } }),
+
+  confirmResolution: (id: number | string, rating?: number, comment?: string) =>
+    request<{ confirmedAt: string; status: string; archived: boolean }>(`/reports/${id}/confirm`, { method: 'POST', body: { rating, comment } }),
+
+  rejectResolution: (id: number | string, reason: string) =>
+    request<{ status: string }>(`/reports/${id}/reject-resolution`, { method: 'POST', body: { reason } }),
+
+  assignmentHistory: (id: number | string) =>
+    request<{ assignments: Array<{
+      id: number; assignedTo: { id: number; name: string } | null; departmentId: number | null; instruction: string | null;
+      priority: string | null; deadline: string | null; status: string; assignedBy: string | null;
+      assignedAt: string; acceptedAt: string | null; completedAt: string | null;
+    }> }>(`/reports/${id}/assignment-history`),
 
   reopenRequests: () =>
     request<{ requests: Array<{ id: number; reportId: number; reason: string; status: string; actorName: string | null; createdAt: string; report: { id: number; reference: string; title: string; status: string } | null }> }>('/workflow/reopen-requests'),
@@ -446,6 +530,9 @@ export const adminApi = {
   setUserRole: (id: number, roleName: string) =>
     request<{ user: { id: number; email: string; role: string } }>(`/admin/users/${id}/role`, { method: 'PUT', body: { roleName } }),
 
+  /** SYSTEM_ADMIN only: permanently delete a user (blocked if the user has reports). */
+  deleteUser: (id: number) => request<null>(`/admin/users/${id}`, { method: 'DELETE' }),
+
   permissions: () => request<{ permissions: Array<{ id: number; code: string; name: string; description: string | null }>; roles: Array<{ id: number; name: string; description: string | null; permissions: string[] }> }>('/admin/permissions'),
 
   setRolePermissions: (roleId: number, permissionCodes: string[]) =>
@@ -471,6 +558,8 @@ export const adminApi = {
 
   deleteDepartment: (id: number) =>
     request<null>(`/departments/${id}`, { method: 'DELETE' }),
+
+  allAlerts: () => request<{ alerts: CommunityAlert[] }>('/alerts/manage'),
 
   createAlert: (payload: {
     title: string;

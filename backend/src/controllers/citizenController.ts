@@ -37,7 +37,7 @@ async function getOwnReport(req: Request, res: Response) {
 // GET /api/v1/citizen/dashboard
 export async function getDashboard(req: Request, res: Response) {
   const citizenId = req.user!.sub;
-  const [total, submitted, underReview, inProgress, resolved, rejected, recentRaw, unreadNotifs] = await Promise.all([
+  const [total, submitted, underReview, inProgress, resolved, rejected, recentRaw, unreadNotifs, awaitingRaw] = await Promise.all([
     prisma.report.count({ where: { citizenId } }),
     prisma.report.count({ where: { citizenId, status: 'SUBMITTED' } }),
     prisma.report.count({ where: { citizenId, status: { in: ['UNDER_REVIEW', 'VERIFIED', 'RECEIVED'] } } }),
@@ -51,6 +51,13 @@ export async function getDashboard(req: Request, res: Response) {
       include: { category: true, district: true },
     }),
     prisma.notification.count({ where: { userId: citizenId, isRead: false } }),
+    // Resolved reports the citizen has not yet confirmed as actually solved.
+    prisma.report.findMany({
+      where: { citizenId, status: { in: ['RESOLVED', 'CLOSED'] }, resolutionConfirmedAt: null, isArchived: false },
+      orderBy: { resolvedAt: 'desc' },
+      take: 5,
+      select: { id: true, reference: true, title: true, status: true, resolvedAt: true, department: { select: { name: true } } },
+    }),
   ]);
 
   const recent = recentRaw.map((r) => ({
@@ -64,7 +71,15 @@ export async function getDashboard(req: Request, res: Response) {
   }));
 
   return ok(res, {
-    stats: { total, submitted, underReview, inProgress, resolved, rejected },
+    stats: { total, submitted, underReview, inProgress, resolved, rejected, awaitingConfirmation: awaitingRaw.length },
+    awaitingConfirmation: awaitingRaw.map((r) => ({
+      id: r.id,
+      reference: r.reference,
+      title: r.title,
+      status: r.status,
+      departmentName: r.department?.name ?? null,
+      resolvedAt: r.resolvedAt,
+    })),
     recentReports: recent,
     unreadNotifications: unreadNotifs,
     citizen: { firstName: req.user!.firstName, lastName: req.user!.lastName },
@@ -320,6 +335,7 @@ export async function getReportDetails(req: Request, res: Response) {
       })),
       updates: report.updates.map((u) => ({ id: u.id, message: u.message, authorName: u.authorName, createdAt: u.createdAt })),
       feedback: report.feedback ? { rating: report.feedback.rating, comment: report.feedback.comment } : null,
+      resolutionConfirmedAt: report.resolutionConfirmedAt,
       createdAt: report.createdAt,
       updatedAt: report.updatedAt,
       resolvedAt: report.resolvedAt,
@@ -388,6 +404,47 @@ export async function submitFeedback(req: Request, res: Response) {
   });
   await audit(req, { action: 'FEEDBACK_SUBMITTED', resourceType: 'REPORT', resourceId: String(report.id), detail: `rating=${ratingNum}` });
   return ok(res, null, 'Thank you for your feedback', 201);
+}
+
+// POST /api/v1/citizen/reports/:id/confirm-resolution
+// Closes the reporting loop: the citizen confirms the problem is actually
+// solved. Notifies the responsible officer so staff can archive confidently.
+export async function confirmResolution(req: Request, res: Response) {
+  const report = await getOwnReport(req, res);
+  if (!report) return;
+
+  if (!['RESOLVED', 'CLOSED'].includes(report.status)) {
+    return fail(res, 'Only resolved reports can be confirmed', 422);
+  }
+  if (report.resolutionConfirmedAt) {
+    return fail(res, 'You have already confirmed this resolution', 409);
+  }
+
+  const confirmedAt = new Date();
+  await prisma.report.update({ where: { id: report.id }, data: { resolutionConfirmedAt: confirmedAt } });
+  await prisma.reportStatusHistory.create({
+    data: {
+      reportId: report.id,
+      fromStatus: report.status,
+      toStatus: report.status,
+      note: 'Citizen confirmed the problem is solved.',
+      actorId: req.user!.sub,
+      actorName: `${req.user!.firstName} ${req.user!.lastName}`,
+    },
+  });
+
+  if (report.assignedOfficerId && report.assignedOfficerId !== req.user!.sub) {
+    await notify({
+      userId: report.assignedOfficerId,
+      type: 'REPORT_UPDATED',
+      title: 'Citizen confirmed resolution',
+      message: `The citizen confirmed ${report.reference} (${report.title.slice(0, 60)}) is solved. You may archive it.`,
+      reportId: report.id,
+    });
+  }
+
+  await audit(req, { action: 'RESOLUTION_CONFIRMED', resourceType: 'REPORT', resourceId: String(report.id), detail: report.reference });
+  return ok(res, { confirmedAt: confirmedAt.toISOString() }, 'Thank you for confirming the resolution');
 }
 
 // POST /api/v1/citizen/reports/:id/reopen

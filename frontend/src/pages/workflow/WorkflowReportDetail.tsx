@@ -6,9 +6,12 @@ import { StatusBadge, UrgencyBadge, formatDateTime, timeAgo } from '../../lib/fo
 import { Spinner, ErrorBox } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 
+const STAFF_ROLES = ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'];
+
 export default function WorkflowReportDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const isStaff = user ? STAFF_ROLES.includes(user.role) : false;
 
   const [report, setReport] = useState<WorkflowReportDetail | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -41,6 +44,20 @@ export default function WorkflowReportDetail() {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiMsg, setAiMsg] = useState('');
 
+  // Assignment state — (re)assign to a specific officer/admin.
+  const [staffList, setStaffList] = useState<Array<{ id: number; name: string; email: string; role: string; district: string | null }>>([]);
+  const [assignOfficerId, setAssignOfficerId] = useState('');
+  const [assignNote, setAssignNote] = useState('');
+  const [assignPriority, setAssignPriority] = useState('');
+  const [assignDeadline, setAssignDeadline] = useState('');
+  const [assignBusy, setAssignBusy] = useState(false);
+  const [assignMsg, setAssignMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Administrator lifecycle state — accept / start / resolve (spec §5).
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  const [resolutionText, setResolutionText] = useState('');
+  const [showResolveForm, setShowResolveForm] = useState(false);
+
   const load = useCallback(async () => {
     if (!id) return;
     try {
@@ -61,7 +78,46 @@ export default function WorkflowReportDetail() {
     load();
     metaApi.departments().then((r) => setDepartments(r.departments)).catch(() => {});
     if (id) aiApi.priority(Number(id)).then((r) => setPriority(r.priority)).catch(() => {});
-  }, [load]);
+    if (isStaff) workflowApi.staff().then((r) => setStaffList(r.staff)).catch(() => {});
+  }, [load, isStaff]);
+
+  async function handleAssign(e: React.FormEvent) {
+    e.preventDefault();
+    if (!id || !assignOfficerId) return;
+    setAssignBusy(true);
+    setAssignMsg(null);
+    try {
+      const res = await workflowApi.assign(id, Number(assignOfficerId), assignNote.trim() || undefined, assignPriority || undefined, assignDeadline || undefined);
+      setAssignMsg({ ok: true, text: `✔ Assignment saved for ${res.report?.reference ?? 'the report'} — the officer has been notified.` });
+      setAssignNote('');
+      setAssignOfficerId('');
+      setAssignPriority('');
+      setAssignDeadline('');
+      await load();
+    } catch (err) {
+      setAssignMsg({ ok: false, text: err instanceof Error ? err.message : 'Could not assign the report' });
+    } finally {
+      setAssignBusy(false);
+    }
+  }
+
+  // ── Administrator lifecycle actions (spec §5): accept → start → resolve ──
+  async function runLifecycleAction(action: () => Promise<unknown>, success: string) {
+    if (!id) return;
+    setLifecycleBusy(true);
+    setActionMsg('');
+    try {
+      await action();
+      setActionMsg(success);
+      setShowResolveForm(false);
+      setResolutionText('');
+      await load();
+    } catch (err) {
+      setActionMsg(`✖ ${err instanceof Error ? err.message : 'Action failed'}`);
+    } finally {
+      setLifecycleBusy(false);
+    }
+  }
 
   async function handleTransition(e: React.FormEvent) {
     e.preventDefault();
@@ -185,6 +241,18 @@ export default function WorkflowReportDetail() {
             <dt className="text-slate-400">Department:</dt>
             <dd className="text-slate-700">{report.department ?? 'Not assigned'}</dd>
           </div>
+          <div className="flex gap-2">
+            <dt className="text-slate-400">Assigned to:</dt>
+            <dd className="text-slate-700">
+              {report.assignedOfficer ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-rwanda-blue/10 px-2 py-0.5 text-xs font-semibold text-rwanda-blue">
+                  <i className="fa-solid fa-user-shield" aria-hidden="true" /> {report.assignedOfficer.name}
+                </span>
+              ) : (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">Unassigned</span>
+              )}
+            </dd>
+          </div>
         </dl>
 
         {/* AI suggestion (if present) */}
@@ -206,6 +274,67 @@ export default function WorkflowReportDetail() {
               {actionMsg.startsWith('✔') && <i className="fa-solid fa-circle-check" aria-hidden="true" />}
               {actionMsg.startsWith('✖') && <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />}
               <span>{actionMsg.replace(/^[✔✖]\s*/, '')}</span>
+            </div>
+          )}
+
+          {/* Assign / reassign to a specific officer or admin */}
+          {canAct && isStaff && (
+            <form onSubmit={handleAssign} className="rounded-lg border border-rwanda-blue/30 bg-rwanda-blue/5 p-4">
+              <h3 className="text-sm font-bold text-slate-800"><i className="fa-solid fa-user-shield" aria-hidden="true" /> {report.assignedOfficer ? `Reassign (currently: ${report.assignedOfficer.name})` : 'Assign to officer / admin'}</h3>
+              {assignMsg && (
+                <div className={`mt-2 rounded-lg px-3 py-2 text-sm ${assignMsg.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}>{assignMsg.text}</div>
+              )}
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <select className="input" value={assignOfficerId} onChange={(e) => setAssignOfficerId(e.target.value)} required>
+                  <option value="">Select officer / admin…</option>
+                  {staffList.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} — {s.role.replace(/_/g, ' ').toLowerCase()}{s.district ? ` (${s.district})` : ''}
+                    </option>
+                  ))}
+                </select>
+                <input className="input" placeholder="Assignment instructions (optional)" maxLength={300} value={assignNote} onChange={(e) => setAssignNote(e.target.value)} />
+                <select className="input" value={assignPriority} onChange={(e) => setAssignPriority(e.target.value)}>
+                  <option value="">Priority (optional)…</option>
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                  <option value="CRITICAL">Critical</option>
+                </select>
+                <input className="input" type="date" aria-label="Assignment deadline" value={assignDeadline} onChange={(e) => setAssignDeadline(e.target.value)} />
+              </div>
+              {staffList.length === 0 && <p className="mt-2 text-xs text-amber-700">No other staff members available to assign.</p>}
+              <button type="submit" className="btn-primary mt-3" disabled={!assignOfficerId || assignBusy}>
+                {assignBusy ? 'Saving…' : report.assignedOfficer ? 'Confirm reassignment' : 'Confirm assignment'}
+              </button>
+              <p className="mt-2 text-xs text-slate-400">The officer is notified immediately and the assignment is recorded in the report timeline and audit log.</p>
+            </form>
+          )}
+
+          {/* Administrator lifecycle actions — accept / start / resolve (spec §5) */}
+          {canAct && isStaff && report.assignedOfficer && (
+            <div className="rounded-lg border border-emerald-300 bg-emerald-50/60 p-4">
+              <h3 className="text-sm font-bold text-slate-800"><i className="fa-solid fa-diagram-project" aria-hidden="true" /> Assignment actions</h3>
+              <p className="mt-1 text-xs text-slate-500">Current status: <strong>{report.status.replace(/_/g, ' ')}</strong>. Follow the workflow: accept the assignment, start work, then submit the resolution for citizen confirmation.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {report.status === 'ASSIGNED' && (
+                  <>
+                    <button type="button" className="btn-primary !py-1.5 text-xs" disabled={lifecycleBusy} onClick={() => runLifecycleAction(() => workflowApi.acceptAssignment(id!), '✔ Assignment accepted — the citizen has been notified.')}>Accept assignment</button>
+                    <button type="button" className="btn-outline !py-1.5 text-xs" disabled={lifecycleBusy} onClick={() => runLifecycleAction(() => workflowApi.startWork(id!), '✔ Work started — status moved to IN_PROGRESS.')}>Start work</button>
+                  </>
+                )}
+                {['IN_PROGRESS', 'ASSIGNED', 'REOPENED', 'ESCALATED'].includes(report.status) && (
+                  <button type="button" className="btn-success !py-1.5 text-xs" disabled={lifecycleBusy} onClick={() => setShowResolveForm((v) => !v)}>{showResolveForm ? 'Cancel resolution' : 'Mark resolved…'}</button>
+                )}
+              </div>
+              {showResolveForm && (
+                <form className="mt-3 space-y-2" onSubmit={(e) => { e.preventDefault(); if (resolutionText.trim()) void runLifecycleAction(() => workflowApi.resolveReport(id!, resolutionText.trim()), '✔ Report resolved — the citizen has been asked to confirm.'); }}>
+                  <label className="label">Resolution description (what was done, when, and how it fixes the problem)</label>
+                  <textarea className="input min-h-24" maxLength={4000} value={resolutionText} onChange={(e) => setResolutionText(e.target.value)} required placeholder="Example: Replaced the failed transformer and restored power on 12/09. Verified all streetlights are working." />
+                  <p className="text-xs text-slate-400">The citizen will be asked to confirm the problem is solved. Uploading before/after evidence below is encouraged.</p>
+                  <button type="submit" className="btn-success" disabled={lifecycleBusy || !resolutionText.trim()}>{lifecycleBusy ? 'Saving…' : 'Submit resolution for citizen confirmation'}</button>
+                </form>
+              )}
             </div>
           )}
 

@@ -89,6 +89,35 @@ export default function CitizenDashboard() {
         <StatCard icon="fa-ban" label={t.rejected} value={data.stats.rejected} tone="red" />
       </div>
 
+      {/* Confirm resolution — close the loop on solved reports */}
+      {data.awaitingConfirmation.length > 0 && (
+        <div className="mt-6 gov-card border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 p-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-600 text-lg text-white" aria-hidden="true">🎉</span>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-bold text-slate-900">Government solved {data.stats.awaitingConfirmation === 1 ? 'a report' : `${data.stats.awaitingConfirmation} reports`} of yours — confirm it!</h2>
+              <p className="mt-0.5 text-sm text-slate-600">Open each report, check the result on the ground, then confirm so we can close the loop.</p>
+            </div>
+          </div>
+          <ul className="mt-4 divide-y divide-green-100">
+            {data.awaitingConfirmation.map((r) => (
+              <li key={r.id}>
+                <Link to={`/reports/${r.id}`} className="flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition hover:bg-green-100/60">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-slate-800">{r.title}</p>
+                    <p className="text-xs text-slate-500">
+                      {r.reference}
+                      {r.departmentName ? ` · handled by ${r.departmentName}` : ''}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-green-600 px-3 py-1 text-xs font-bold text-white">Confirm →</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         {/* Recent reports */}
         <div className="card p-5 lg:col-span-2">

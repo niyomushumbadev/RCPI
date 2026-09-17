@@ -37,6 +37,7 @@ const NAV: NavItem[] = [
   // ── Levels 2-7: Government workflow ──
   { to: '/workflow', label: 'Workflow Dashboard', icon: 'inbox', roles: ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
   { to: '/workflow/reports', label: 'Reports Queue', icon: 'list-check', roles: ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
+  { to: '/workflow/archive', label: 'Closed Archive', icon: 'box-archive', roles: ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST'] },
 
   // ── Levels 5-8: Intelligence & strategy ──
   { to: '/government/intelligence', label: 'GIS & Intelligence', icon: 'satellite-dish', roles: ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST', 'EXECUTIVE'] },
@@ -47,7 +48,7 @@ const NAV: NavItem[] = [
   { to: '/admin', label: 'Administration', icon: 'sliders', roles: ['DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
   { to: '/admin/users', label: 'Manage Users', icon: 'users-gear', roles: ['DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
   { to: '/admin/audit-logs', label: 'Audit Logs', icon: 'clipboard-check', roles: ['DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
-  { to: '/admin/management', label: 'System Management', icon: 'screwdriver-wrench', roles: ['NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
+  { to: '/admin/management', label: 'System Management', icon: 'screwdriver-wrench', roles: ['DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'] },
 ];
 
 export default function Layout() {

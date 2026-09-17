@@ -63,6 +63,7 @@ export default function Landing() {
           </Link>
 
           <div className="flex items-center gap-3">
+            <Link to="/track" className="btn-outline">Track a report</Link>
             {user ? (
               <Link to="/dashboard" className="btn-primary">Open portal</Link>
             ) : (
@@ -90,6 +91,7 @@ export default function Landing() {
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link to="/register" className="btn-primary px-6 py-3 text-base">Register as citizen</Link>
                 <Link to="/login" className="btn-outline px-6 py-3 text-base">Government login</Link>
+                <Link to="/track" className="btn-outline px-6 py-3 text-base"><i className="fa-solid fa-magnifying-glass-location" aria-hidden="true" /> Track a report</Link>
               </div>
             )}
 
@@ -249,7 +251,7 @@ export default function Landing() {
       <footer className="border-t border-slate-800 bg-slate-950 text-slate-300">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-[1.25fr_0.8fr_0.9fr_1.35fr]">
           <div><div className="flex items-center gap-3"><RwandaFlagLogo className="border border-white/20 bg-white/10" size={38} /><div><p className="text-xs font-black uppercase tracking-[0.14em] text-white">R-CPI</p><p className="text-xs text-slate-400">Rwanda Community Problem Intelligence</p></div></div><p className="mt-4 max-w-sm text-sm leading-6 text-slate-400">A secure public-service platform for reporting, reviewing and resolving community problems with evidence and accountability.</p><div className="mt-5 flex items-center gap-2 text-xs text-slate-400"><span className="h-2 w-2 rounded-full bg-rwanda-green" /> Digital public service · Kigali, Rwanda</div></div>
-          <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-rwanda-yellow">Quick links</p><div className="mt-3 space-y-2 text-sm"><Link className="block hover:text-white" to="/register">Citizen reporting</Link><Link className="block hover:text-white" to="/login">Government access</Link><Link className="block hover:text-white" to="/community">Community insights</Link><Link className="block hover:text-white" to="/map">Community map</Link></div></div>
+          <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-rwanda-yellow">Quick links</p><div className="mt-3 space-y-2 text-sm"><Link className="block hover:text-white" to="/register">Citizen reporting</Link><Link className="block hover:text-white" to="/track">Track a report</Link><Link className="block hover:text-white" to="/login">Government access</Link><Link className="block hover:text-white" to="/community">Community insights</Link><Link className="block hover:text-white" to="/map">Community map</Link></div></div>
           <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-rwanda-yellow">Support</p><div className="mt-3 space-y-2 text-sm"><Link className="block hover:text-white" to="/help">Help centre</Link><Link className="block hover:text-white" to="/login">Secure sign in</Link><span className="block text-slate-400">Role-based access</span><span className="block text-slate-400">Audit-ready actions</span><span className="block text-slate-400">Kinyarwanda · English · Français</span></div></div>
           <RwandaFooterMap />
         </div>

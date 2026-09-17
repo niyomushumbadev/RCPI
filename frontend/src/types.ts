@@ -149,7 +149,16 @@ export interface CitizenDashboard {
     inProgress: number;
     resolved: number;
     rejected: number;
+    awaitingConfirmation: number;
   };
+  awaitingConfirmation: Array<{
+    id: number;
+    reference: string;
+    title: string;
+    status: ReportStatus;
+    departmentName: string | null;
+    resolvedAt: string | null;
+  }>;
   recentReports: Array<{
     id: number;
     reference: string;
@@ -194,6 +203,7 @@ export interface ReportDetail {
   timeline: TimelineEntry[];
   updates: Array<{ id: number; message: string; authorName: string | null; createdAt: string }>;
   feedback: { rating: number; comment: string | null } | null;
+  resolutionConfirmedAt: string | null;
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
@@ -287,6 +297,7 @@ export interface WorkflowReport {
   sector: string | null;
   citizen: { firstName: string; lastName: string; email: string | null; phone: string | null };
   department: string | null;
+  assignedOfficer: { id: number; name: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -311,11 +322,13 @@ export interface WorkflowReportDetail {
     description: string | null;
   };
   department: string | null;
+  assignedOfficer: { id: number; name: string } | null;
   evidence: Array<{ id: number; fileName: string; mimeType: string; sizeBytes: number }>;
   timeline: TimelineEntry[];
   updates: Array<{ id: number; message: string; authorName: string | null; createdAt: string }>;
   messages: ChatMessage[];
   feedback: { rating: number; comment: string | null } | null;
+  resolutionConfirmedAt: string | null;
   aiSuggestion: { category: string | null; confidence: string | null; summary: string | null };
   allowedTransitions: string[];
   createdAt: string;

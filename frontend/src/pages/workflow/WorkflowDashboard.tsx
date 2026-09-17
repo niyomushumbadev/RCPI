@@ -20,6 +20,22 @@ type ReopenRequest = {
 // Mirrors backend TRANSITION_ROLE_MATRIX.REOPENED — who may approve.
 const CAN_APPROVE = ['SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'];
 const STAFF_ROLES = ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'];
+// Mirrors backend ROLE_PERMISSIONS for the quick actions used in the workbench.
+const ROLE_CAN: Record<string, string[]> = {
+  CELL_OFFICER: ['VERIFIED', 'REJECTED', 'RESOLVED'],
+  SECTOR_OFFICER: ['VERIFIED', 'REJECTED', 'RESOLVED'],
+  OFFICER: ['VERIFIED', 'REJECTED', 'RESOLVED'],
+  DISTRICT_ADMIN: ['VERIFIED', 'REJECTED', 'RESOLVED'],
+  PROVINCE_ADMIN: ['RESOLVED'],
+  CITY_ADMIN: ['RESOLVED'],
+  NATIONAL_ADMIN: ['VERIFIED', 'RESOLVED'],
+  SYSTEM_ADMIN: ['VERIFIED', 'REJECTED', 'RESOLVED'],
+};
+const TODO_STATUSES = ['SUBMITTED', 'RECEIVED', 'PENDING_VERIFICATION', 'UNDER_REVIEW', 'WAITING_CITIZEN'];
+const ACTIVE_STATUSES = ['VERIFIED', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_DEPARTMENT', 'REOPENED'];
+const CLOSING_STATUSES = ['RESOLVED', 'ESCALATED', 'PENDING_CLOSURE', 'REOPEN_REQUESTED'];
+
+type StaffMember = { id: number; name: string; email: string; role: string; district: string | null };
 
 export default function WorkflowDashboard() {
   const { user } = useAuth();
@@ -28,6 +44,14 @@ export default function WorkflowDashboard() {
   const [reopenReqs, setReopenReqs] = useState<ReopenRequest[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Review workbench: queue rows, staff directory, and inline action state.
+  const [queue, setQueue] = useState<WorkflowReport[]>([]);
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [workbenchTab, setWorkbenchTab] = useState<'todo' | 'active' | 'closing'>('todo');
+  const [assigning, setAssigning] = useState<{ id: number; officerId: string; note: string } | null>(null);
+  const [acting, setActing] = useState<{ id: number; status: 'RESOLVED' | 'REJECTED'; note: string } | null>(null);
+  const [busyReport, setBusyReport] = useState<number | null>(null);
 
   // Review state: which request is being actioned and with what decision.
   const [reviewing, setReviewing] = useState<{ id: number; decision: 'APPROVE' | 'DECLINE' } | null>(null);
@@ -40,11 +64,13 @@ export default function WorkflowDashboard() {
 
   const load = useCallback(() => {
     setLoading(true);
-    Promise.all([workflowApi.stats(), workflowApi.reports('ALL', 1), workflowApi.reopenRequests()])
-      .then(([s, r, rr]) => {
+    Promise.all([workflowApi.stats(), workflowApi.reports('ALL', 1), workflowApi.reopenRequests(), workflowApi.staff()])
+      .then(([s, r, rr, st]) => {
         setStats(s.stats);
         setPending(r.reports.filter((rep: WorkflowReport) => ['SUBMITTED', 'RECEIVED', 'UNDER_REVIEW', 'REOPEN_REQUESTED'].includes(rep.status)).slice(0, 8));
         setReopenReqs(rr.requests);
+        setQueue(r.reports);
+        setStaffList(st.staff);
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load workflow data'))
       .finally(() => setLoading(false));
@@ -74,6 +100,47 @@ export default function WorkflowDashboard() {
   if (loading) return <Spinner />;
   if (error) return <DashboardError message={error} onRetry={() => window.location.reload()} />;
   if (!stats) return null;
+
+  const canAct = user ? Boolean(user.role && ROLE_CAN[user.role]?.length) : false;
+  const allowedForMe = (status: string) => (user ? (ROLE_CAN[user.role] ?? []).includes(status) : false);
+  const tabReports = (tab: 'todo' | 'active' | 'closing') => {
+    const source = tab === 'todo' ? TODO_STATUSES : tab === 'active' ? ACTIVE_STATUSES : CLOSING_STATUSES;
+    return queue.filter((r) => source.includes(r.status));
+  };
+
+  async function submitAssign() {
+    if (!assigning) return;
+    const officerId = Number(assigning.officerId);
+    if (!officerId) return;
+    setBusyReport(assigning.id);
+    setActionMsg(null);
+    try {
+      await workflowApi.assign(assigning.id, officerId, assigning.note.trim() || undefined);
+      setActionMsg({ ok: true, text: '✔ Report assigned — the officer has been notified.' });
+      setAssigning(null);
+      load();
+    } catch (e) {
+      setActionMsg({ ok: false, text: e instanceof Error ? e.message : 'Failed to assign the report' });
+    } finally {
+      setBusyReport(null);
+    }
+  }
+
+  async function submitQuickAction() {
+    if (!acting) return;
+    setBusyReport(acting.id);
+    setActionMsg(null);
+    try {
+      await workflowApi.transition(acting.id, acting.status, acting.note.trim() || undefined);
+      setActionMsg({ ok: true, text: `✔ Report moved to ${acting.status.replace('_', ' ').toLowerCase()} — the citizen has been notified.` });
+      setActing(null);
+      load();
+    } catch (e) {
+      setActionMsg({ ok: false, text: e instanceof Error ? e.message : 'Failed to update the report' });
+    } finally {
+      setBusyReport(null);
+    }
+  }
 
   return (
     <div>
@@ -109,6 +176,173 @@ export default function WorkflowDashboard() {
           {actionMsg.text}
         </div>
       )}
+
+      {/* ── Review & solve workbench ──────────────────────────────────── */}
+      <section className="card mt-6 p-5">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-bold text-slate-900"><i className="fa-solid fa-clipboard-check" aria-hidden="true" /> Review &amp; solve reports</h2>
+          <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+            {([['todo', 'To review'], ['active', 'In progress'], ['closing', 'Closing']] as const).map(([tab, label]) => {
+              const count = tabReports(tab).length;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${workbenchTab === tab ? 'bg-white text-rwanda-blue shadow-sm' : 'text-slate-500 hover:text-slate-700'} ${count === 0 ? 'opacity-60' : ''}`}
+                  onClick={() => setWorkbenchTab(tab)}
+                >
+                  {label} ({count})
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <p className="mb-3 text-xs text-slate-500">
+          Review each report, assign it to the right officer, and resolve it when the work is done. Assignments notify the officer; resolutions notify the citizen.
+        </p>
+
+        {tabReports(workbenchTab).length === 0 ? (
+          <EmptyState
+            icon="fa-circle-check"
+            title={workbenchTab === 'todo' ? 'Nothing waiting for review' : workbenchTab === 'active' ? 'No active work right now' : 'Nothing to close'}
+            hint="Reports in this stage will appear here automatically."
+          />
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {tabReports(workbenchTab).map((r) => (
+              <li key={r.id} className="py-4">
+                <div className="flex flex-wrap items-start gap-3">
+                  <span className="w-7 text-center text-xl text-brand-primary"><CategoryIcon name={r.categoryName} dbIcon={r.categoryIcon} /></span>
+                  <div className="min-w-0 flex-1">
+                    <Link to={`/workflow/${r.id}`} className="font-medium text-slate-800 hover:text-rwanda-blue hover:underline">
+                      {r.title}
+                    </Link>
+                    <p className="text-xs text-slate-400">
+                      {r.reference} · {r.district}{r.sector ? ` / ${r.sector}` : ''} · {r.categoryName} · {timeAgo(r.createdAt)}
+                    </p>
+                    <p className="mt-1 line-clamp-2 text-sm text-slate-600">{r.description}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <StatusBadge status={r.status} />
+                      <UrgencyBadge urgency={r.urgency} />
+                      {r.department && <span className="badge bg-slate-100 text-slate-600"><i className="fa-solid fa-building" aria-hidden="true" /> {r.department}</span>}
+                      {r.assignedOfficer ? (
+                        <span className="badge bg-rwanda-blue/10 text-rwanda-blue"><i className="fa-solid fa-user-shield" aria-hidden="true" /> {r.assignedOfficer.name}</span>
+                      ) : (
+                        <span className="badge bg-amber-100 text-amber-700"><i className="fa-solid fa-user-slash" aria-hidden="true" /> Unassigned</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {canAct && (
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="btn-outline text-xs"
+                        disabled={busyReport === r.id}
+                        onClick={() => { setAssigning(assigning?.id === r.id ? null : { id: r.id, officerId: r.assignedOfficer?.id ? String(r.assignedOfficer.id) : '', note: '' }); setActing(null); }}
+                      >
+                        <i className="fa-solid fa-user-plus" aria-hidden="true" /> {r.assignedOfficer ? 'Reassign' : 'Assign'}
+                      </button>
+                      {allowedForMe('RESOLVED') && ['IN_PROGRESS', 'ASSIGNED', 'REOPENED', 'WAITING_DEPARTMENT'].includes(r.status) && (
+                        <button
+                          type="button"
+                          className="btn-outline text-xs !border-green-300 !text-green-700 hover:!bg-green-50"
+                          disabled={busyReport === r.id}
+                          onClick={() => { setActing({ id: r.id, status: 'RESOLVED', note: '' }); setAssigning(null); }}
+                        >
+                          <i className="fa-solid fa-circle-check" aria-hidden="true" /> Resolve
+                        </button>
+                      )}
+                      {allowedForMe('REJECTED') && TODO_STATUSES.concat('VERIFIED').includes(r.status) && (
+                        <button
+                          type="button"
+                          className="btn-outline text-xs !border-red-200 !text-red-600 hover:!bg-red-50"
+                          disabled={busyReport === r.id}
+                          onClick={() => { setActing({ id: r.id, status: 'REJECTED', note: '' }); setAssigning(null); }}
+                        >
+                          <i className="fa-solid fa-ban" aria-hidden="true" /> Reject
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Inline assign panel */}
+                {assigning?.id === r.id && (
+                  <div className="mt-3 rounded-lg border border-rwanda-blue/30 bg-rwanda-blue/5 p-4">
+                    <h4 className="text-sm font-bold text-slate-800"><i className="fa-solid fa-user-shield" aria-hidden="true" /> Assign to officer / admin</h4>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <select
+                        className="input"
+                        value={assigning.officerId}
+                        onChange={(e) => setAssigning({ ...assigning, officerId: e.target.value })}
+                      >
+                        <option value="">Select officer…</option>
+                        {staffList.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} — {s.role.replace(/_/g, ' ').toLowerCase()}{s.district ? ` (${s.district})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        className="input"
+                        placeholder="Instruction for the officer (optional)"
+                        maxLength={300}
+                        value={assigning.note}
+                        onChange={(e) => setAssigning({ ...assigning, note: e.target.value })}
+                      />
+                    </div>
+                    {staffList.length === 0 && <p className="mt-2 text-xs text-amber-700">No other staff members are available — you can still solve this report yourself.</p>}
+                    <div className="mt-3 flex justify-end gap-2">
+                      <button type="button" className="btn-outline text-xs" onClick={() => setAssigning(null)}>Cancel</button>
+                      <button
+                        type="button"
+                        className="btn-primary text-xs"
+                        disabled={!assigning.officerId || busyReport === r.id}
+                        onClick={submitAssign}
+                      >
+                        {busyReport === r.id ? 'Saving…' : r.assignedOfficer ? 'Confirm reassignment' : 'Confirm assignment'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Inline resolve / reject panel */}
+                {acting?.id === r.id && (
+                  <div className={`mt-3 rounded-lg border p-4 ${acting.status === 'RESOLVED' ? 'border-green-300 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                    <h4 className="text-sm font-bold text-slate-800">
+                      {acting.status === 'RESOLVED' ? 'Resolve this report' : 'Reject this report'}
+                    </h4>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {acting.status === 'RESOLVED'
+                        ? 'Only resolve when the problem is actually fixed on the ground. The citizen will be asked to confirm the result.'
+                        : 'Explain why the report cannot be actioned — your note is shared with the citizen.'}
+                    </p>
+                    <textarea
+                      className="input mt-2 min-h-20"
+                      maxLength={500}
+                      placeholder={acting.status === 'RESOLVED' ? 'e.g. Canal cleared and waste removed — verified on site this morning.' : 'e.g. Duplicate of RCP-2026-000004 — the same issue is already being handled.'}
+                      value={acting.note}
+                      onChange={(e) => setActing({ ...acting, note: e.target.value })}
+                    />
+                    <div className="mt-3 flex justify-end gap-2">
+                      <button type="button" className="btn-outline text-xs" onClick={() => setActing(null)}>Cancel</button>
+                      <button
+                        type="button"
+                        className={`text-xs ${acting.status === 'RESOLVED' ? 'btn-primary' : 'btn-primary !bg-red-600'}`}
+                        disabled={busyReport === r.id || (acting.status === 'REJECTED' && !acting.note.trim())}
+                        onClick={submitQuickAction}
+                      >
+                        {busyReport === r.id ? 'Saving…' : acting.status === 'RESOLVED' ? 'Confirm resolved' : 'Confirm rejection'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {/* Reopen requests review */}
       <section className="card mt-6 p-5">

@@ -15,8 +15,10 @@ export default function ForgotPassword() {
     setBusy(true);
     setError('');
     try {
+      // Response data is null when the email is unknown (anti-enumeration) —
+      // only a dev-mode hit returns a resetToken.
       const res = await authApi.forgotPassword(email.trim());
-      if (res.resetToken) setDevToken(res.resetToken);
+      if (res?.resetToken) setDevToken(res.resetToken);
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send reset instructions');

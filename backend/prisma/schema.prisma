@@ -277,6 +277,14 @@ model Report {
   longitude  Decimal?
   locationDescription String?
 
+  // Resolution & confirmation lifecycle (workflow §5-8)
+  resolutionDescription String?
+  confirmedById         Int?
+  confirmedByName       String?
+  confirmedAt           DateTime?
+  isArchived            Boolean @default(false)
+  archivedAt            DateTime?
+
   // AI fields (Task 4) — citizen sees only approved subset
   aiCategory      String?
   aiConfidence    Decimal?
@@ -292,8 +300,9 @@ model Report {
   upvotes       Int      @default(0)
 
   createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  updatedAt  DateTime @updatedAt
   resolvedAt DateTime?
+  resolutionConfirmedAt DateTime? // citizen confirmed the problem is actually solved
 
   citizen    User       @relation(fields: [citizenId], references: [id])
   category   Category   @relation(fields: [categoryId], references: [id])
@@ -311,6 +320,11 @@ model Report {
   aiJobs       AIJob[]
   aiAnalyses   AIAnalysis[]
   reopenRequests ReportReopenRequest[]
+  confirmations  ReportConfirmation[]
+  assignments    ReportAssignment[]
+
+  @@index([isArchived])
+  @@index([assignedOfficerId, status])
 
   @@index([citizenId])
   @@index([status])
@@ -326,17 +340,42 @@ model Report {
 // ─────────────────────────────────────────────────────────────
 
 model ReportAssignment {
-  id             Int      @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   reportId       Int
-  officerId      Int?
+  officerId      Int?      // assigned administrator
   departmentId   Int?
   assignedBy     Int?
   assignedByName String?
-  note           String?
-  createdAt      DateTime @default(now())
+  note           String?   // assignment instructions
+  priority       String?   // LOW | MEDIUM | HIGH | CRITICAL (assignment priority)
+  deadline       DateTime?
+  status         String    @default("PENDING") // PENDING | ACCEPTED | DECLINED | COMPLETED
+  acceptedAt     DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  report Report @relation(fields: [reportId], references: [id])
 
   @@index([reportId])
+  @@index([officerId, status])
   @@map("report_assignments")
+}
+
+// Citizen confirmation / rejection of a resolution (workflow §7)
+model ReportConfirmation {
+  id                Int      @id @default(autoincrement())
+  reportId          Int
+  citizenId         Int
+  confirmationType  String   // CONFIRMED | REJECTED
+  feedback          String?
+  satisfactionRating Int?
+  createdAt         DateTime @default(now())
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([citizenId])
+  @@map("report_confirmations")
 }
 
 model ReportDeadline {

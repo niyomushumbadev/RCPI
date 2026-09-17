@@ -10,6 +10,7 @@ import { Spinner } from './components/ui';
 // bundle only carries the app shell (router, auth, layout, UI kit).
 const Landing = lazy(() => import('./pages/public/Landing'));
 const ForbiddenPage = lazy(() => import('./pages/public/Forbidden'));
+const TrackReport = lazy(() => import('./pages/public/TrackReport'));
 
 // Auth pages
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -36,6 +37,7 @@ const CommunityMap = lazy(() => import('./pages/community/CommunityMap'));
 const WorkflowDashboard = lazy(() => import('./pages/workflow/WorkflowDashboard'));
 const WorkflowReports = lazy(() => import('./pages/workflow/WorkflowReports'));
 const WorkflowReportDetail = lazy(() => import('./pages/workflow/WorkflowReportDetail'));
+const WorkflowArchive = lazy(() => import('./pages/workflow/WorkflowArchive'));
 
 // Intelligence & decision support (levels 5-8)
 const GovernmentIntelligence = lazy(() => import('./pages/intelligence/GovernmentIntelligence'));
@@ -90,6 +92,7 @@ export default function App() {
           <Routes>
             {/* ── Public ── */}
             <Route path="/" element={<Landing />} />
+            <Route path="/track" element={<TrackReport />} />
             <Route path="/forbidden" element={<RequireAuth roles={AUTHENTICATED_ROLES}><ForbiddenPage /></RequireAuth>} />
             <Route path="/help" element={<HelpPage />} />
 
@@ -141,6 +144,7 @@ export default function App() {
               <Route path="/workflow" element={<RequireAuth roles={GOV_ROLES}><WorkflowDashboard /></RequireAuth>} />
               <Route path="/workflow/reports" element={<RequireAuth roles={GOV_ROLES}><WorkflowReports /></RequireAuth>} />
               <Route path="/workflow/reports/:id" element={<RequireAuth roles={GOV_ROLES}><WorkflowReportDetail /></RequireAuth>} />
+              <Route path="/workflow/archive" element={<RequireAuth roles={GOV_ROLES}><WorkflowArchive /></RequireAuth>} />
               <Route path="/workflow/:id" element={<RequireAuth roles={GOV_ROLES}><WorkflowReportDetail /></RequireAuth>} />
 
               {/* Levels 5-8 — Intelligence & decision support */}
@@ -154,7 +158,7 @@ export default function App() {
               <Route path="/admin/dashboard" element={<RequireAuth roles={ADMIN_ROLES}><AdminDashboard /></RequireAuth>} />
               <Route path="/admin/users" element={<RequireAuth roles={ADMIN_ROLES}><AdminUsers /></RequireAuth>} />
               <Route path="/admin/audit-logs" element={<RequireAuth roles={ADMIN_ROLES}><AdminAuditLogs /></RequireAuth>} />
-              <Route path="/admin/management" element={<RequireAuth roles={['NATIONAL_ADMIN', 'SYSTEM_ADMIN']}><AdminManagement /></RequireAuth>} />
+              <Route path="/admin/management" element={<RequireAuth roles={ADMIN_ROLES}><AdminManagement /></RequireAuth>} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

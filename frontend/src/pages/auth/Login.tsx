@@ -29,12 +29,21 @@ export default function Login() {
     setBusy(true);
     try {
       const loggedInUser = await login(email, password, rememberMe);
-      const targetPath =
-        loggedInUser.role === 'CITIZEN'
-          ? '/citizen/dashboard'
-          : ['OFFICER', 'ANALYST'].includes(loggedInUser.role)
-            ? '/workflow'
-            : '/admin';
+      // Land every role on the dashboard that matches its access level.
+      const roleDashboards: Record<string, string> = {
+        CITIZEN: '/citizen/dashboard',
+        CELL_OFFICER: '/workflow',
+        SECTOR_OFFICER: '/workflow',
+        OFFICER: '/workflow',
+        ANALYST: '/workflow',
+        DISTRICT_ADMIN: '/admin',
+        PROVINCE_ADMIN: '/admin',
+        CITY_ADMIN: '/admin',
+        NATIONAL_ADMIN: '/admin',
+        SYSTEM_ADMIN: '/admin',
+        EXECUTIVE: '/executive',
+      };
+      const targetPath = roleDashboards[loggedInUser.role] ?? '/citizen/dashboard';
       navigate(from.startsWith('/login') || from.startsWith('/auth/') ? targetPath : from, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -42,15 +51,6 @@ export default function Login() {
       setBusy(false);
     }
   }
-
-  const demoAccounts = [
-    { label: 'Citizen', email: 'citizen@rcpi.gov.rw', password: 'Citizen@123' },
-    { label: 'Officer', email: 'officer@rcpi.gov.rw', password: 'Officer@123' },
-    { label: 'District Admin', email: 'district-admin@rcpi.gov.rw', password: 'District@123' },
-    { label: 'National Admin', email: 'national-admin@rcpi.gov.rw', password: 'National@123' },
-    { label: 'System Admin', email: 'admin@rcpi.gov.rw', password: 'Admin@123' },
-    { label: 'Analyst', email: 'analyst@rcpi.gov.rw', password: 'Analyst@123' },
-  ];
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -172,25 +172,6 @@ export default function Login() {
             </Link>
           </p>
 
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Demo access</p>
-            <div className="space-y-2">
-              {demoAccounts.map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-xl bg-white px-3 py-2 text-left text-sm shadow-sm transition hover:bg-slate-100"
-                  onClick={() => {
-                    setEmail(acc.email);
-                    setPassword(acc.password);
-                  }}
-                >
-                  <span className="font-semibold text-slate-800">{acc.label}</span>
-                  <span className="text-xs text-slate-500">{acc.email}</span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>

@@ -3,20 +3,42 @@ import { Link } from 'react-router-dom';
 import { adminApi, geoApi } from '../../lib/api';
 import type { AdminUser, District, Province } from '../../types';
 import { PageHeader, Spinner, ErrorBox, EmptyState, Pagination } from '../../components/ui';
+import { useAuth } from '../../context/AuthContext';
 import { formatDateTime } from '../../lib/format';
 
-const ROLES = ['OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN', 'ANALYST', 'CITIZEN'];
+// Every assignable role: staff created here sign in with the temporary
+// password and land on the dashboard that matches their role.
+const ROLES = [
+  'CITIZEN',
+  'CELL_OFFICER',
+  'SECTOR_OFFICER',
+  'OFFICER',
+  'DISTRICT_ADMIN',
+  'PROVINCE_ADMIN',
+  'CITY_ADMIN',
+  'NATIONAL_ADMIN',
+  'EXECUTIVE',
+  'ANALYST',
+  'SYSTEM_ADMIN',
+];
 
 const ROLE_BADGE: Record<string, string> = {
   CITIZEN: 'bg-slate-100 text-slate-600',
+  CELL_OFFICER: 'bg-cyan-100 text-cyan-800',
+  SECTOR_OFFICER: 'bg-cyan-100 text-cyan-800',
   OFFICER: 'bg-sky-100 text-sky-800',
   DISTRICT_ADMIN: 'bg-indigo-100 text-indigo-800',
+  PROVINCE_ADMIN: 'bg-violet-100 text-violet-800',
+  CITY_ADMIN: 'bg-fuchsia-100 text-fuchsia-800',
   NATIONAL_ADMIN: 'bg-purple-100 text-purple-800',
+  EXECUTIVE: 'bg-amber-100 text-amber-800',
   SYSTEM_ADMIN: 'bg-red-100 text-red-800',
   ANALYST: 'bg-teal-100 text-teal-800',
 };
 
 export default function AdminUsers() {
+  const { user: currentUser } = useAuth();
+  const isSystemAdmin = currentUser?.role === 'SYSTEM_ADMIN';
   const [params, setParams] = useState<URLSearchParams>(new URLSearchParams());
   const page = parseInt(params.get('page') ?? '1', 10);
   const role = params.get('role') ?? 'ALL';
@@ -35,6 +57,9 @@ export default function AdminUsers() {
   const [districts, setDistricts] = useState<District[]>([]);
   const [createError, setCreateError] = useState('');
   const [createBusy, setCreateBusy] = useState(false);
+  // Show the sign-in credentials once after creation so the admin can hand
+  // them to the new user (the password is never displayed again).
+  const [createdUser, setCreatedUser] = useState<{ firstName: string; lastName: string; email: string; password: string; role: string } | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -94,6 +119,7 @@ export default function AdminUsers() {
         provinceId: provinceId ? Number(provinceId) : undefined,
         districtId: districtId ? Number(districtId) : undefined,
       });
+      setCreatedUser({ firstName: form.firstName, lastName: form.lastName, email: form.email, password: form.password, role: form.roleName });
       setShowCreate(false);
       setForm({ firstName: '', lastName: '', email: '', phone: '', password: '', roleName: 'OFFICER' });
       // reload list
@@ -103,6 +129,16 @@ export default function AdminUsers() {
       setCreateError(err instanceof Error ? err.message : 'Could not create user');
     } finally {
       setCreateBusy(false);
+    }
+  }
+
+  async function handleDelete(u: AdminUser) {
+    if (!window.confirm(`Permanently delete ${u.firstName} ${u.lastName} (${u.email})? They will no longer be able to sign in. This cannot be undone.`)) return;
+    try {
+      await adminApi.deleteUser(u.id);
+      setData((d) => (d ? { ...d, users: d.users.filter((x) => x.id !== u.id), pagination: { ...d.pagination, total: d.pagination.total - 1 } } : d));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not delete user');
     }
   }
 
@@ -123,6 +159,24 @@ export default function AdminUsers() {
       </div>
 
       {error && <ErrorBox message={error} />}
+
+      {/* Sign-in credentials shown once, right after the account is created. */}
+      {createdUser && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-bold"><i className="fa-solid fa-circle-check" aria-hidden="true" /> User created — share these sign-in credentials</p>
+              <div className="mt-2 space-y-1 font-mono text-xs">
+                <p>{createdUser.firstName} {createdUser.lastName} · {createdUser.role.replace(/_/g, ' ')} </p>
+                <p>Email: <span className="font-bold">{createdUser.email}</span></p>
+                <p>Temporary password: <span className="font-bold">{createdUser.password}</span></p>
+              </div>
+              <p className="mt-2 text-xs">They can now sign in on the login page with this email and password and will land on their role's dashboard.</p>
+            </div>
+            <button type="button" className="btn-outline !py-1 text-xs" onClick={() => setCreatedUser(null)}>Dismiss</button>
+          </div>
+        </div>
+      )}
 
       {/* Create form */}
       {showCreate && (
@@ -238,12 +292,24 @@ export default function AdminUsers() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      className={u.isActive ? 'btn-danger !px-3 !py-1 text-xs' : 'btn-success !px-3 !py-1 text-xs'}
-                      onClick={() => toggleStatus(u)}
-                    >
-                      {u.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        className={u.isActive ? 'btn-danger !px-3 !py-1 text-xs' : 'btn-success !px-3 !py-1 text-xs'}
+                        onClick={() => toggleStatus(u)}
+                      >
+                        {u.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                      {isSystemAdmin && (
+                        <button
+                          className="rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                          title={u.id === currentUser?.id ? 'You cannot delete your own account' : 'Permanently delete this user'}
+                          disabled={u.id === currentUser?.id}
+                          onClick={() => handleDelete(u)}
+                        >
+                          <i className="fa-solid fa-trash-can" aria-hidden="true" /> Delete
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

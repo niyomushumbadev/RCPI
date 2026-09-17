@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminApi, geoApi, metaApi } from '../../lib/api';
-import type { Category, Department, District, Province } from '../../types';
+import type { Category, CommunityAlert, Department, District, Province } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 import { ErrorBox, PageHeader } from '../../components/ui';
 
 export default function AdminManagement() {
+  const { user } = useAuth();
+  const isSystemAdmin = user?.role === 'SYSTEM_ADMIN';
   const [categories, setCategories] = useState<Category[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -21,13 +24,19 @@ export default function AdminManagement() {
   const [permissionData, setPermissionData] = useState<{ permissions: Array<{ id: number; code: string; name: string; description: string | null }>; roles: Array<{ id: number; name: string; description: string | null; permissions: string[] }> } | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  // Alert lifecycle management (CRUD beyond the create form).
+  const [alerts, setAlerts] = useState<CommunityAlert[]>([]);
+  const [editingAlert, setEditingAlert] = useState<{ id: number; title: string; message: string } | null>(null);
 
   async function load() {
     try {
-      const [cats, deps, geo, permissions] = await Promise.all([metaApi.categories(false), metaApi.departments(true), geoApi.provinces(), adminApi.permissions()]);
+      const [cats, deps, geo, permissions, alertList] = await Promise.all([metaApi.categories(false), metaApi.departments(true), geoApi.provinces(), adminApi.permissions().catch(() => null), adminApi.allAlerts()]);
       setCategories(cats.categories); setDepartments(deps.departments); setProvinces(geo.provinces);
-      setPermissionData(permissions);
-      if (selectedRoleId === null && permissions.roles[0]) { setSelectedRoleId(permissions.roles[0].id); setSelectedPermissions(permissions.roles[0].permissions); }
+      setAlerts(alertList.alerts);
+      if (permissions) {
+        setPermissionData(permissions);
+        if (selectedRoleId === null && permissions.roles[0]) { setSelectedRoleId(permissions.roles[0].id); setSelectedPermissions(permissions.roles[0].permissions); }
+      }
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Failed to load administration data'); }
   }
   useEffect(() => { void load(); }, []);
@@ -111,10 +120,57 @@ export default function AdminManagement() {
           </div>
         ))}</div></form>
 
-        <form className="gov-card space-y-3 p-5" onSubmit={(event) => { event.preventDefault(); void submit(() => adminApi.createAlert({ title: alert.title, message: alert.message, severity: alert.severity, category: alert.category || undefined, districtId: alert.districtId ? Number(alert.districtId) : undefined }), 'Alert published'); }}><h2 className="font-bold text-slate-900">Community alert</h2><input className="input" placeholder="Alert title" value={alert.title} onChange={(e) => setAlert({ ...alert, title: e.target.value })} required /><textarea className="input min-h-24" placeholder="Message" value={alert.message} onChange={(e) => setAlert({ ...alert, message: e.target.value })} required /><select className="input" value={alert.severity} onChange={(e) => setAlert({ ...alert, severity: e.target.value })}><option>INFO</option><option>WARNING</option><option>CRITICAL</option></select><input className="input" placeholder="Category (optional)" value={alert.category} onChange={(e) => setAlert({ ...alert, category: e.target.value })} /><select className="input" value={provinceId} onChange={(e) => { setProvinceId(e.target.value); setAlert({ ...alert, districtId: '' }); }}><option value="">Target province</option>{provinces.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><select className="input" value={alert.districtId} disabled={!provinceId} onChange={(e) => setAlert({ ...alert, districtId: e.target.value })}><option value="">Target district</option>{districts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><button className="btn-primary">Publish alert</button></form>
+        <form className="gov-card space-y-3 p-5" onSubmit={(event) => { event.preventDefault(); void submit(() => adminApi.createAlert({ title: alert.title, message: alert.message, severity: alert.severity, category: alert.category || undefined, districtId: alert.districtId ? Number(alert.districtId) : undefined }), 'Alert published'); }}><h2 className="font-bold text-slate-900">Community alerts</h2><p className="text-xs text-slate-500">Published alerts appear on the public landing page and community map.</p><input className="input" placeholder="Alert title" value={alert.title} onChange={(e) => setAlert({ ...alert, title: e.target.value })} required /><textarea className="input min-h-24" placeholder="Message" value={alert.message} onChange={(e) => setAlert({ ...alert, message: e.target.value })} required /><select className="input" value={alert.severity} onChange={(e) => setAlert({ ...alert, severity: e.target.value })}><option>INFO</option><option>WARNING</option><option>CRITICAL</option></select><input className="input" placeholder="Category (optional)" value={alert.category} onChange={(e) => setAlert({ ...alert, category: e.target.value })} /><select className="input" value={provinceId} onChange={(e) => { setProvinceId(e.target.value); setAlert({ ...alert, districtId: '' }); }}><option value="">Target province</option>{provinces.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><select className="input" value={alert.districtId} disabled={!provinceId} onChange={(e) => setAlert({ ...alert, districtId: e.target.value })}><option value="">Target district</option>{districts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><button className="btn-primary">Publish alert</button></form>
       </div>
 
-      {permissionData && (
+      {/* Alert lifecycle management — edit, toggle, delete existing alerts */}
+      <section className="gov-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-bold text-slate-900">Manage published alerts</h2>
+            <p className="mt-1 text-sm text-slate-500">Full lifecycle view including inactive and expired alerts. Click the status pill to activate or retire an alert.</p>
+          </div>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{alerts.length} total</span>
+        </div>
+        {alerts.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-400">No alerts published yet.</p>
+        ) : (
+          <ul className="mt-4 divide-y divide-slate-100">
+            {alerts.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
+                {editingAlert?.id === a.id ? (
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <input className="input" value={editingAlert.title} onChange={(e) => setEditingAlert({ ...editingAlert, title: e.target.value })} aria-label="Alert title" />
+                    <textarea className="input min-h-16" value={editingAlert.message} onChange={(e) => setEditingAlert({ ...editingAlert, message: e.target.value })} aria-label="Alert message" />
+                    <div className="flex gap-2">
+                      <button type="button" className="btn-primary !py-1.5 text-xs" onClick={() => void submit(() => adminApi.updateAlert(a.id, { title: editingAlert.title.trim(), message: editingAlert.message.trim() }), 'Alert updated').then(() => setEditingAlert(null))}>Save</button>
+                      <button type="button" className="btn-outline !py-1.5 text-xs" onClick={() => setEditingAlert(null)}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800"><i className="fa-solid fa-bullhorn text-slate-400" aria-hidden="true" />{a.title}<span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${a.severity === 'CRITICAL' ? 'bg-red-50 text-red-700' : a.severity === 'WARNING' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>{a.severity}</span></p>
+                    <p className="mt-0.5 text-xs text-slate-500">{a.message}</p>
+                  </div>
+                )}
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${a.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+                    title={a.isActive ? 'Click to retire this alert' : 'Click to re-activate this alert'}
+                    onClick={() => void submit(() => adminApi.updateAlert(a.id, { isActive: !a.isActive }), `Alert ${a.isActive ? 'retired' : 're-activated'}`)}
+                  >
+                    {a.isActive ? 'Active' : 'Retired'}
+                  </button>
+                  <button className="text-slate-400 hover:text-brand-primary" aria-label="Edit alert" onClick={() => setEditingAlert({ id: a.id, title: a.title, message: a.message })}><i className="fa-solid fa-pen" aria-hidden="true" /></button>
+                  <button className="text-slate-400 hover:text-red-600" aria-label="Delete alert" onClick={() => confirmDelete('Alert', () => adminApi.deleteAlert(a.id))}><i className="fa-solid fa-trash-can" aria-hidden="true" /></button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {permissionData && isSystemAdmin && (
         <section className="gov-card p-5">
           <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-bold text-slate-900">Role permissions</h2><p className="mt-1 text-sm text-slate-500">System admins can delegate capabilities by role. These grants are recorded in the audit log.</p></div><select className="input !w-56" value={selectedRoleId ?? ''} onChange={(event) => setSelectedRoleId(Number(event.target.value))}>{permissionData.roles.map((role) => <option key={role.id} value={role.id}>{role.name.replace(/_/g, ' ')}</option>)}</select></div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{permissionData.permissions.map((permission) => <label key={permission.code} className="flex gap-3 rounded-xl border border-slate-200 p-3"><input type="checkbox" checked={selectedPermissions.includes(permission.code)} onChange={(event) => setSelectedPermissions((current) => event.target.checked ? [...current, permission.code] : current.filter((code) => code !== permission.code))} /><span><span className="block text-sm font-semibold text-slate-800">{permission.name}</span><span className="block text-xs text-slate-500">{permission.description ?? permission.code}</span></span></label>)}</div>

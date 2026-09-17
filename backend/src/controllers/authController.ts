@@ -7,6 +7,8 @@ import { ok, fail } from '../utils/helpers';
 import { signAccessToken } from '../middleware/auth';
 import { audit } from '../services/audit.service';
 import { notify } from '../services/notification.service';
+import { sendEmail, emailShell, emailConfigured } from '../services/email.service';
+import { sendPasswordResetSMS, smsConfigured } from '../services/sms.service';
 
 const REFRESH_COOKIE = 'rcpi_refresh';
 
@@ -180,8 +182,25 @@ export async function forgotPassword(req: Request, res: Response) {
         },
       });
       await audit(req, { actorId: user.id, action: 'PASSWORD_RESET_REQUESTED', resourceType: 'USER', resourceId: String(user.id) });
+      // Channel 1 — email via Resend (best-effort, fire-and-forget).
+      if (emailConfigured()) {
+        void sendEmail({
+          to: user.email,
+          subject: 'Reset your R-CPI password',
+          html: emailShell(
+            'Password reset',
+            `<p>Bright itegeko, <strong>${user.firstName}</strong>,</p><p>Someone requested a password reset for your R-CPI account. This link is valid for 60 minutes and can be used once.</p><p><a href="${env.frontendUrl}/reset-password?token=${token}" style="display:inline-block;background:#00A1DE;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Reset my password</a></p><p style="color:#64748b">If this was not you, ignore this email — your password stays unchanged.</p>`
+          ),
+          text: `Reset your R-CPI password within 60 minutes: ${env.frontendUrl}/reset-password?token=${token}`,
+        });
+      }
+      // Channel 2 — SMS via Twilio when the account has a phone number (best-effort).
+      if (smsConfigured() && user.phone) {
+        void sendPasswordResetSMS({ to: user.phone, resetToken: token });
+      }
       if (env.isDev) {
-        return ok(res, { resetToken: token }, 'Password reset token created (development only)');
+        const channels = emailConfigured() ? (user.phone && smsConfigured() ? 'email + SMS' : 'email') : user.phone && smsConfigured() ? 'SMS' : 'dev console';
+        return ok(res, { resetToken: token }, `Password reset token created (development only — delivery channel: ${channels})`);
       }
     }
   }

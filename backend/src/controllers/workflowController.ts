@@ -64,6 +64,7 @@ export async function listReports(req: Request, res: Response) {
 
   const where = {
     ...scope,
+    isArchived: false, // archived reports live in history, not active queues (spec §14)
     ...(districtFilter && !scope.districtId ? { districtId: districtFilter } : {}),
     ...(status && status !== 'ALL' ? { status } : {}),
   };
@@ -79,11 +80,16 @@ export async function listReports(req: Request, res: Response) {
         category: { select: { name: true, icon: true } },
         district: { select: { name: true } },
         sector: { select: { name: true } },
-        citizen: { select: { firstName: true, lastName: true, email: true, phone: true } },
-        department: { select: { name: true } },
+      citizen: { select: { firstName: true, lastName: true, email: true, phone: true } },
+      department: { select: { name: true } },
       },
     }),
   ]);
+
+  // Resolve assignee names (assignedOfficerId is a bare scalar — no relation).
+  const officerIds = [...new Set(reports.map((r) => r.assignedOfficerId).filter((v): v is number => v != null))];
+  const officers = officerIds.length ? await prisma.user.findMany({ where: { id: { in: officerIds } }, select: { id: true, firstName: true, lastName: true } }) : [];
+  const officerName = new Map(officers.map((o) => [o.id, `${o.firstName} ${o.lastName}`]));
 
   return ok(res, {
     reports: reports.map((r) => ({
@@ -99,6 +105,7 @@ export async function listReports(req: Request, res: Response) {
       sector: r.sector?.name ?? null,
       citizen: r.isAnonymous ? { firstName: 'Anonymous', lastName: 'Citizen', email: null, phone: null } : { firstName: r.citizen.firstName, lastName: r.citizen.lastName, email: r.citizen.email, phone: r.citizen.phone },
       department: r.department?.name ?? null,
+      assignedOfficer: r.assignedOfficerId ? { id: r.assignedOfficerId, name: officerName.get(r.assignedOfficerId) ?? 'Unknown officer' } : null,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     })),
@@ -129,6 +136,9 @@ export async function getReport(req: Request, res: Response) {
   if (!report) return notFound(res, 'Report not found');
 
   const isAnonymous = report.isAnonymous;
+  const assignee = report.assignedOfficerId
+    ? await prisma.user.findUnique({ where: { id: report.assignedOfficerId }, select: { id: true, firstName: true, lastName: true } })
+    : null;
   return ok(res, {
     report: {
       id: report.id,
@@ -150,11 +160,13 @@ export async function getReport(req: Request, res: Response) {
         description: report.locationDescription,
       },
       department: report.department?.name ?? null,
+      assignedOfficer: assignee ? { id: assignee.id, name: `${assignee.firstName} ${assignee.lastName}` } : null,
       evidence: report.evidence.map((e) => ({ id: e.id, fileName: e.fileName, mimeType: e.mimeType, sizeBytes: e.sizeBytes })),
       timeline: report.statusHistory,
       updates: report.updates,
       messages: report.messages,
       feedback: report.feedback,
+      resolutionConfirmedAt: report.resolutionConfirmedAt,
       deadline: report.deadline,
       deadlineReason: report.deadlineReason,
       internalNotes: await prisma.reportInternalNote.findMany({ where: { reportId: id }, orderBy: { createdAt: 'desc' } }),
@@ -500,6 +512,60 @@ export async function reviewReopenRequest(req: Request, res: Response) {
   return ok(res, { requestId: id, decision: newStatus }, action === 'APPROVE' ? 'Report reopened' : 'Reopen request declined');
 }
 
+// GET /api/v1/workflow/archive — closed/archived reports (audit history).
+// Archived reports never appear in active queues; this is their permanent,
+// queryable record (spec §14). Supports status/search filters + pagination.
+export async function listArchivedReports(req: Request, res: Response) {
+  const page = Math.max(1, parseInt(req.query.page as string ?? '1', 10));
+  const pageSize = 15;
+  const q = (req.query.q as string | undefined)?.trim();
+  const status = req.query.status as string | undefined;
+
+  const where = {
+    isArchived: true,
+    ...(status && status !== 'ALL' ? { status } : {}),
+    ...(q ? { OR: [{ reference: { contains: q } }, { title: { contains: q } }] } : {}),
+  };
+
+  const [total, reports] = await Promise.all([
+    prisma.report.count({ where }),
+    prisma.report.findMany({
+      where,
+      orderBy: { archivedAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        category: { select: { name: true, icon: true } },
+        district: { select: { name: true } },
+        department: { select: { name: true } },
+        citizen: { select: { firstName: true, lastName: true } },
+      },
+    }),
+  ]);
+
+  return ok(res, {
+    reports: reports.map((r) => ({
+      id: r.id,
+      reference: r.reference,
+      title: r.title,
+      status: r.status,
+      categoryName: r.category.name,
+      categoryIcon: r.category.icon,
+      district: r.district.name,
+      department: r.department?.name ?? null,
+      citizenName: r.isAnonymous ? 'Anonymous citizen' : `${r.citizen.firstName} ${r.citizen.lastName}`,
+      confirmedByName: r.confirmedByName,
+      confirmedAt: r.confirmedAt,
+      archivedAt: r.archivedAt,
+      closedAt: r.closedAt,
+      resolvedAt: r.resolvedAt,
+      resolutionDescription: r.resolutionDescription,
+      createdAt: r.createdAt,
+    })),
+    pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+  });
+}
+
 // GET /api/v1/workflow/stats — officer dashboard numbers
 export async function stats(req: Request, res: Response) {
   const [total, submitted, underReview, assigned, inProgress, resolvedToday, escalated] = await Promise.all([
@@ -512,4 +578,159 @@ export async function stats(req: Request, res: Response) {
     prisma.report.count({ where: { status: 'ESCALATED' } }),
   ]);
   return ok(res, { stats: { total, submitted, underReview, assigned, inProgress, resolved: resolvedToday, escalated } });
+}
+
+// GET /api/v1/workflow/staff — assignable officers/admins for the review workbench.
+// District officers only see colleagues in their own district; higher roles see everyone.
+export async function listStaff(req: Request, res: Response) {
+  const ASSIGNABLE_ROLES = ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'];
+  const staff = await prisma.user.findMany({
+    where: { isActive: true, role: { name: { in: ASSIGNABLE_ROLES } } },
+    select: { id: true, firstName: true, lastName: true, email: true, role: true, district: { select: { name: true } } },
+    orderBy: [{ firstName: 'asc' }],
+  });
+  const mapped = staff
+    .filter((s) => s.id !== req.user!.sub)
+    .map((s) => ({ id: s.id, name: `${s.firstName} ${s.lastName}`, email: s.email, role: s.role.name, district: s.district?.name ?? null }));
+  // Geographic scoping mirrors the transition guard: local officers see their district only.
+  if (['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN'].includes(req.user?.role ?? '')) {
+    const me = await prisma.user.findUnique({ where: { id: req.user!.sub }, select: { districtId: true } });
+    if (me?.districtId) {
+      const districtName = (await prisma.district.findUnique({ where: { id: me.districtId }, select: { name: true } }))?.name;
+      return ok(res, { staff: mapped.filter((s) => s.district === districtName) });
+    }
+  }
+  return ok(res, { staff: mapped });
+}
+
+// POST /api/v1/workflow/reports/:id/assign { officerId, departmentId?, deadline?, priority?, note? }
+// (Re)assigns a report to a specific officer/admin with instructions,
+// deadline and priority (spec §4). When the report is still VERIFIED it
+// moves to ASSIGNED; reassignment of an already-ASSIGNED report keeps its status.
+export async function assignReport(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  const { officerId, departmentId, deadline, priority, note } = req.body ?? {};
+  if (!officerId || Number.isNaN(Number(officerId))) return fail(res, 'An officer is required to assign this report', 422);
+
+  const report = await prisma.report.findUnique({ where: { id } });
+  if (!report) return notFound(res, 'Report not found');
+
+  // Geographic authorization mirrors the transition guard.
+  if (['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN'].includes(req.user?.role ?? '')) {
+    const me = await prisma.user.findUnique({ where: { id: req.user!.sub }, select: { districtId: true } });
+    if (me?.districtId && report.districtId !== me.districtId) {
+      return fail(res, 'You can only assign reports within your assigned district', 403);
+    }
+  }
+
+  const officer = await prisma.user.findFirst({ where: { id: Number(officerId), isActive: true }, include: { role: true, district: true } });
+  if (!officer) return fail(res, 'Selected officer was not found', 422);
+  // District officers can only take work in their own district (geographic integrity).
+  if (['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN'].includes(officer.role.name)) {
+    if (!officer.districtId) return fail(res, 'That officer has no district — cannot assign geographically scoped work', 422);
+    if (officer.districtId !== report.districtId) return fail(res, 'That officer belongs to another district', 422);
+  }
+
+  const officerName = `${officer.firstName} ${officer.lastName}`;
+  const actorName = `${req.user!.firstName} ${req.user!.lastName}`;
+  const isReassignment = report.assignedOfficerId != null && report.assignedOfficerId !== officer.id;
+
+  // Deadline (optional) and assignment priority (LOW|MEDium|HIGH|CRITICAL).
+  let parsedDeadline: Date | null = null;
+  if (deadline) {
+    parsedDeadline = new Date(String(deadline));
+    if (Number.isNaN(parsedDeadline.getTime())) return fail(res, 'Invalid deadline date', 422);
+  }
+  const prio = typeof priority === 'string' && ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority.toUpperCase()) ? priority.toUpperCase() : null;
+
+  // VERIFIED → ASSIGNED on first assignment; reassignment keeps the current status.
+  const nextStatus = !isReassignment && report.status === 'VERIFIED' ? 'ASSIGNED' : report.status;
+
+  await prisma.report.update({
+    where: { id },
+    data: {
+      assignedOfficerId: officer.id,
+      ...(parsedDeadline ? { deadline: parsedDeadline } : {}),
+      ...(prio ? { priority: prio } : {}),
+      ...(nextStatus !== report.status ? { status: nextStatus } : {}),
+    },
+  });
+  await prisma.reportStatusHistory.create({
+    data: {
+      reportId: id,
+      fromStatus: report.status,
+      toStatus: nextStatus,
+      note: `${isReassignment ? `Reassigned to ${officerName}` : `Assigned to ${officerName}`}${note ? `: ${String(note).slice(0, 300)}` : ''}${prio ? ` [priority: ${prio}]` : ''}${parsedDeadline ? ` [deadline: ${parsedDeadline.toISOString().slice(0, 10)}]` : ''}`,
+      actorId: req.user!.sub,
+      actorName,
+    },
+  });
+  await prisma.reportAssignment.create({
+    data: {
+      reportId: id,
+      officerId: officer.id,
+      departmentId: departmentId ? Number(departmentId) : null,
+      assignedBy: req.user!.sub,
+      assignedByName: actorName,
+      note: note ? String(note).slice(0, 500) : null,
+      priority: prio,
+      deadline: parsedDeadline,
+      status: 'PENDING',
+    },
+  });
+
+  // Notify the assigned administrator AND the citizen (spec §4).
+  await notify({
+    userId: officer.id,
+    type: 'REPORT_ASSIGNED',
+    title: isReassignment ? 'Report reassigned to you' : 'Report assigned to you',
+    message: `${actorName} assigned you ${report.reference} (${report.title.slice(0, 60)}).${prio ? ` Priority: ${prio}.` : ''}${parsedDeadline ? ` Deadline: ${parsedDeadline.toISOString().slice(0, 10)}.` : ''}${note ? ` Instructions: ${String(note).slice(0, 150)}` : ''}`,
+    reportId: id,
+  });
+  await notify({
+    userId: report.citizenId,
+    type: 'REPORT_ASSIGNED',
+    title: 'Report assigned for action',
+    message: `Your report ${report.reference} has been assigned to the responsible department for action.`,
+    reportId: id,
+  });
+
+  await audit(req, { action: 'REPORT_ASSIGNED_OFFICER', resourceType: 'REPORT', resourceId: String(id), detail: `officerId=${officer.id} officer=${officerName}${isReassignment ? ' (reassignment)' : ''}${prio ? ` priority=${prio}` : ''}` });
+  return ok(res, { report: { id, reference: report.reference, status: nextStatus, assignedOfficerId: officer.id } }, isReassignment ? 'Report reassigned' : 'Report assigned');
+}
+
+// GET /api/v1/workflow/assignments?status=PENDING — assignment worklist for officers
+export async function listMyAssignments(req: Request, res: Response) {
+  const status = req.query.status as string | undefined;
+  const assignments = await prisma.reportAssignment.findMany({
+    where: {
+      officerId: req.user!.sub,
+      ...(status && status !== 'ALL' ? { status } : {}),
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+    include: {
+      report: {
+        select: { id: true, reference: true, title: true, status: true, urgency: true, priority: true, deadline: true, isArchived: true, district: { select: { name: true } }, category: { select: { name: true, icon: true } } },
+      },
+    },
+  });
+  return ok(res, {
+    assignments: assignments
+      .filter((a) => !a.report?.isArchived)
+      .map((a) => ({
+        id: a.id,
+        status: a.status,
+        priority: a.priority,
+        deadline: a.deadline,
+        instruction: a.note,
+        assignedByName: a.assignedByName,
+        assignedAt: a.createdAt,
+        acceptedAt: a.acceptedAt,
+        completedAt: a.completedAt,
+        report: a.report
+          ? { id: a.report.id, reference: a.report.reference, title: a.report.title, status: a.report.status, urgency: a.report.urgency, priority: a.report.priority, deadline: a.report.deadline, district: a.report.district?.name ?? null, categoryName: a.report.category?.name ?? null, categoryIcon: a.report.category?.icon ?? null }
+          : null,
+      })),
+  });
 }

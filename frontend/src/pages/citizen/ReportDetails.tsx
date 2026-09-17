@@ -25,6 +25,13 @@ export default function ReportDetail() {
   const [sending, setSending] = useState(false);
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   const [evidenceBusy, setEvidenceBusy] = useState(false);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  // Resolution review (spec §7): confirm with rating/feedback, or reject with a reason.
+  const [confirmRating, setConfirmRating] = useState(0);
+  const [confirmComment, setConfirmComment] = useState('');
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [reviewMsg, setReviewMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const isOfficer = user && ['OFFICER', 'DISTRICT_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'].includes(user.role);
 
@@ -47,6 +54,7 @@ export default function ReportDetail() {
           timeline: r.timeline,
           updates: r.updates,
           feedback: r.feedback,
+          resolutionConfirmedAt: r.resolutionConfirmedAt ?? null,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt,
           resolvedAt: null,
@@ -120,11 +128,44 @@ export default function ReportDetail() {
     }
   }
 
+  async function handleConfirmResolution() {
+    if (!report) return;
+    setConfirmBusy(true);
+    setReviewMsg(null);
+    try {
+      await workflowApi.confirmResolution(report.id, confirmRating || undefined, confirmComment.trim() || undefined);
+      setReviewMsg({ ok: true, text: 'Thank you! The report is now closed and archived in your history.' });
+      await load();
+    } catch (reason) {
+      setReviewMsg({ ok: false, text: reason instanceof Error ? reason.message : 'Could not confirm resolution' });
+    } finally {
+      setConfirmBusy(false);
+    }
+  }
+
+  async function handleRejectResolution(e: React.FormEvent) {
+    e.preventDefault();
+    if (!report || !rejectReason.trim()) return;
+    setConfirmBusy(true);
+    setReviewMsg(null);
+    try {
+      await workflowApi.rejectResolution(report.id, rejectReason.trim());
+      setReviewMsg({ ok: true, text: 'Report reopened — government staff have been notified and will reassign or continue the work.' });
+      setRejectOpen(false);
+      await load();
+    } catch (reason) {
+      setReviewMsg({ ok: false, text: reason instanceof Error ? reason.message : 'Could not reopen the report' });
+    } finally {
+      setConfirmBusy(false);
+    }
+  }
+
   if (loading) return <Spinner />;
   if (error) return <ErrorBox message={error} />;
   if (!report) return null;
 
   const canReopen = ['RESOLVED', 'CLOSED'].includes(report.status) && !isOfficer;
+  const isSolved = !isOfficer && ['RESOLVED', 'CLOSED'].includes(report.status) && !report.resolutionConfirmedAt;
   const lat = report.location.latitude != null ? Number(report.location.latitude) : null;
   const lng = report.location.longitude != null ? Number(report.location.longitude) : null;
   const hasCoords = lat != null && lng != null && !Number.isNaN(lat) && !Number.isNaN(lng);
@@ -134,6 +175,64 @@ export default function ReportDetail() {
       {justCreated && (
         <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           <i className="fa-solid fa-circle-check" aria-hidden="true" /> Report submitted successfully! Reference: <strong>{report.reference}</strong>. We will notify you as it moves through review.
+        </div>
+      )}
+
+      {/* Resolution review — confirm (§7 option A) or reject (§7 option B) */}
+      {isSolved && (
+        <div className="gov-card mb-6 overflow-hidden border-0 bg-gradient-to-r from-green-600 to-emerald-500 p-0 text-white">
+          <div className="flex flex-wrap items-start gap-4 p-6">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-3xl" aria-hidden="true">🎉</span>
+            <div className="min-w-64 flex-1">
+              <h2 className="text-xl font-bold">Good news — your report has been resolved!</h2>
+              <p className="mt-1 text-sm text-green-50">
+                Government staff marked <strong>{report.reference}</strong> as solved{report.resolvedAt ? ` on ${formatDateTime(report.resolvedAt)}` : ''}. Please review the resolution below and tell us whether the problem is really fixed on the ground.
+              </p>
+              {reviewMsg && <div className={`mt-3 rounded-lg px-3 py-2 text-sm ${reviewMsg.ok ? 'bg-white text-green-800' : 'bg-red-100 text-red-800'}`}>{reviewMsg.text}</div>}
+              <div className="mt-4 rounded-xl bg-white/10 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-50">Option A — Problem solved</p>
+                <p className="mt-1 text-xs text-green-50">Optional: rate the service and leave feedback. Your confirmation closes and archives the report.</p>
+                <div className="mt-2 flex gap-1">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button key={n} type="button" aria-label={`${n} star${n > 1 ? 's' : ''}`} className="text-2xl leading-none transition hover:scale-110" onClick={() => setConfirmRating((r) => (r === n ? 0 : n))}>
+                      <span className={n <= confirmRating ? 'text-amber-300' : 'text-white/40'}>★</span>
+                    </button>
+                  ))}
+                </div>
+                <textarea className="mt-2 w-full rounded-lg border border-white/30 bg-white/10 p-2 text-sm text-white placeholder-green-100" rows={2} maxLength={1000} placeholder="Optional feedback (what was done well / what could improve)" value={confirmComment} onChange={(e) => setConfirmComment(e.target.value)} />
+                <button className="mt-2 rounded-lg bg-white px-4 py-2 text-sm font-bold text-green-700 shadow-sm transition hover:bg-green-50 disabled:opacity-60" disabled={confirmBusy} onClick={handleConfirmResolution}>
+                  {confirmBusy ? 'Saving…' : '✓ Problem Solved / Confirm Resolution'}
+                </button>
+              </div>
+              <div className="mt-3 rounded-xl bg-white/10 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-50">Option B — Problem not solved</p>
+                {!rejectOpen ? (
+                  <>
+                    <p className="mt-1 text-xs text-green-50">If the problem is not fixed, tell us why — the report returns to the system officer for reassignment or further work.</p>
+                    <button className="mt-2 rounded-lg border border-white/40 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20 disabled:opacity-60" disabled={confirmBusy} onClick={() => setRejectOpen(true)}>
+                      Problem Not Solved
+                    </button>
+                  </>
+                ) : (
+                  <form className="mt-2" onSubmit={handleRejectResolution}>
+                    <input className="w-full rounded-lg border border-white/30 bg-white/10 p-2 text-sm text-white placeholder-green-100" maxLength={1000} required placeholder="Example: The streetlight is still not working at night." value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
+                    <div className="mt-2 flex gap-2">
+                      <button type="submit" className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-red-700 shadow-sm transition hover:bg-red-50 disabled:opacity-60" disabled={confirmBusy || !rejectReason.trim()}>Reopen report</button>
+                      <button type="button" className="rounded-lg border border-white/40 bg-white/10 px-3 py-2 text-sm font-semibold text-white" onClick={() => { setRejectOpen(false); setRejectReason(''); }}>Cancel</button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {reviewMsg && !isSolved && (
+        <div className={`mb-4 rounded-lg border px-4 py-3 text-sm ${reviewMsg.ok ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-700'}`}>{reviewMsg.text}</div>
+      )}
+      {isSolved && report.resolutionConfirmedAt && (
+        <div className="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <i className="fa-solid fa-circle-check" aria-hidden="true" /> <strong>Closed the loop:</strong> you confirmed this problem is solved on {formatDateTime(report.resolutionConfirmedAt)}. Thank you for helping verify government action!
         </div>
       )}
 
@@ -313,7 +412,7 @@ export default function ReportDetail() {
 
       {/* Feedback & reopen — citizen only, after resolution */}
       {!isOfficer && ['RESOLVED', 'CLOSED'].includes(report.status) && (
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div id="reopen-section" className="mt-6 grid gap-6 lg:grid-cols-2">
           <FeedbackCard reportId={report.id} existing={report.feedback} onDone={load} />
           <ReopenCard reportId={report.id} visible={canReopen} onDone={load} />
         </div>
