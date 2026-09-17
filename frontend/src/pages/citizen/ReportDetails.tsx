@@ -7,6 +7,7 @@ import { Icon } from '../../components/icons';
 import { Spinner, ErrorBox } from '../../components/ui';
 import ReportMiniMap from '../../components/ReportMiniMap';
 import { useAuth } from '../../context/AuthContext';
+import { t } from '../../translations';
 
 /** Citizen view of a single report — own-report only (server enforces). */
 export default function ReportDetail() {
@@ -73,7 +74,7 @@ export default function ReportDetail() {
         setAiAnalysis(null);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load report');
+      setError(e instanceof Error ? e.message : t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -97,7 +98,7 @@ export default function ReportDetail() {
       setDraft('');
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not send message');
+      setError(err instanceof Error ? err.message : t('common.error'));
     } finally {
       setSending(false);
     }
@@ -112,19 +113,19 @@ export default function ReportDetail() {
       setEvidenceFile(null);
       await load();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not upload evidence');
+      setError(reason instanceof Error ? reason.message : t('common.error'));
     } finally {
       setEvidenceBusy(false);
     }
   }
 
   async function handleEvidenceDelete(evidenceId: number) {
-    if (!report || !window.confirm('Delete this evidence file? This cannot be undone.')) return;
+    if (!report || !window.confirm(t('common.confirmDelete'))) return;
     try {
       await evidenceApi.remove(report.id, evidenceId);
       await load();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not delete evidence');
+      setError(reason instanceof Error ? reason.message : t('common.error'));
     }
   }
 
@@ -134,10 +135,10 @@ export default function ReportDetail() {
     setReviewMsg(null);
     try {
       await workflowApi.confirmResolution(report.id, confirmRating || undefined, confirmComment.trim() || undefined);
-      setReviewMsg({ ok: true, text: 'Thank you! The report is now closed and archived in your history.' });
+      setReviewMsg({ ok: true, text: t('citizen.confirmThanks') });
       await load();
     } catch (reason) {
-      setReviewMsg({ ok: false, text: reason instanceof Error ? reason.message : 'Could not confirm resolution' });
+      setReviewMsg({ ok: false, text: reason instanceof Error ? reason.message : t('common.error') });
     } finally {
       setConfirmBusy(false);
     }
@@ -150,11 +151,11 @@ export default function ReportDetail() {
     setReviewMsg(null);
     try {
       await workflowApi.rejectResolution(report.id, rejectReason.trim());
-      setReviewMsg({ ok: true, text: 'Report reopened — government staff have been notified and will reassign or continue the work.' });
+      setReviewMsg({ ok: true, text: t('citizen.reopenThanks') });
       setRejectOpen(false);
       await load();
     } catch (reason) {
-      setReviewMsg({ ok: false, text: reason instanceof Error ? reason.message : 'Could not reopen the report' });
+      setReviewMsg({ ok: false, text: reason instanceof Error ? reason.message : t('common.error') });
     } finally {
       setConfirmBusy(false);
     }
@@ -174,7 +175,7 @@ export default function ReportDetail() {
     <div className="mx-auto max-w-4xl">
       {justCreated && (
         <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          <i className="fa-solid fa-circle-check" aria-hidden="true" /> Report submitted successfully! Reference: <strong>{report.reference}</strong>. We will notify you as it moves through review.
+          <i className="fa-solid fa-circle-check" aria-hidden="true" /> {t('citizen.reportSubmitted')} <strong>{report.reference}</strong>. {t('citizen.reportSubmittedHint')}
         </div>
       )}
 
@@ -184,14 +185,14 @@ export default function ReportDetail() {
           <div className="flex flex-wrap items-start gap-4 p-6">
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-3xl" aria-hidden="true">🎉</span>
             <div className="min-w-64 flex-1">
-              <h2 className="text-xl font-bold">Good news — your report has been resolved!</h2>
+              <h2 className="text-xl font-bold">{t('citizen.resolutionBanner')}</h2>
               <p className="mt-1 text-sm text-green-50">
-                Government staff marked <strong>{report.reference}</strong> as solved{report.resolvedAt ? ` on ${formatDateTime(report.resolvedAt)}` : ''}. Please review the resolution below and tell us whether the problem is really fixed on the ground.
+                {t('citizen.resolutionBannerText')} <strong>{report.reference}</strong>{report.resolvedAt ? ` · ${formatDateTime(report.resolvedAt)}` : ''}. {t('citizen.resolutionBannerText2')}
               </p>
               {reviewMsg && <div className={`mt-3 rounded-lg px-3 py-2 text-sm ${reviewMsg.ok ? 'bg-white text-green-800' : 'bg-red-100 text-red-800'}`}>{reviewMsg.text}</div>}
               <div className="mt-4 rounded-xl bg-white/10 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-50">Option A — Problem solved</p>
-                <p className="mt-1 text-xs text-green-50">Optional: rate the service and leave feedback. Your confirmation closes and archives the report.</p>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-50">{t('citizen.optionA')}</p>
+                <p className="mt-1 text-xs text-green-50">{t('citizen.optionAText')}</p>
                 <div className="mt-2 flex gap-1">
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button key={n} type="button" aria-label={`${n} star${n > 1 ? 's' : ''}`} className="text-2xl leading-none transition hover:scale-110" onClick={() => setConfirmRating((r) => (r === n ? 0 : n))}>
@@ -199,26 +200,26 @@ export default function ReportDetail() {
                     </button>
                   ))}
                 </div>
-                <textarea className="mt-2 w-full rounded-lg border border-white/30 bg-white/10 p-2 text-sm text-white placeholder-green-100" rows={2} maxLength={1000} placeholder="Optional feedback (what was done well / what could improve)" value={confirmComment} onChange={(e) => setConfirmComment(e.target.value)} />
+                <textarea className="mt-2 w-full rounded-lg border border-white/30 bg-white/10 p-2 text-sm text-white placeholder-green-100" rows={2} maxLength={1000} placeholder={t('citizen.feedbackPlaceholder')} value={confirmComment} onChange={(e) => setConfirmComment(e.target.value)} />
                 <button className="mt-2 rounded-lg bg-white px-4 py-2 text-sm font-bold text-green-700 shadow-sm transition hover:bg-green-50 disabled:opacity-60" disabled={confirmBusy} onClick={handleConfirmResolution}>
-                  {confirmBusy ? 'Saving…' : '✓ Problem Solved / Confirm Resolution'}
+                  {confirmBusy ? t('common.saving') : `✓ ${t('citizen.confirmSolved')}`}
                 </button>
               </div>
               <div className="mt-3 rounded-xl bg-white/10 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-50">Option B — Problem not solved</p>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-50">{t('citizen.optionB')}</p>
                 {!rejectOpen ? (
                   <>
-                    <p className="mt-1 text-xs text-green-50">If the problem is not fixed, tell us why — the report returns to the system officer for reassignment or further work.</p>
+                    <p className="mt-1 text-xs text-green-50">{t('citizen.optionBText')}</p>
                     <button className="mt-2 rounded-lg border border-white/40 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20 disabled:opacity-60" disabled={confirmBusy} onClick={() => setRejectOpen(true)}>
-                      Problem Not Solved
+                      {t('citizen.problemNotSolved')}
                     </button>
                   </>
                 ) : (
                   <form className="mt-2" onSubmit={handleRejectResolution}>
-                    <input className="w-full rounded-lg border border-white/30 bg-white/10 p-2 text-sm text-white placeholder-green-100" maxLength={1000} required placeholder="Example: The streetlight is still not working at night." value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
+                    <input className="w-full rounded-lg border border-white/30 bg-white/10 p-2 text-sm text-white placeholder-green-100" maxLength={1000} required placeholder={t('citizen.reopenReasonPlaceholder')} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
                     <div className="mt-2 flex gap-2">
-                      <button type="submit" className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-red-700 shadow-sm transition hover:bg-red-50 disabled:opacity-60" disabled={confirmBusy || !rejectReason.trim()}>Reopen report</button>
-                      <button type="button" className="rounded-lg border border-white/40 bg-white/10 px-3 py-2 text-sm font-semibold text-white" onClick={() => { setRejectOpen(false); setRejectReason(''); }}>Cancel</button>
+                      <button type="submit" className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-red-700 shadow-sm transition hover:bg-red-50 disabled:opacity-60" disabled={confirmBusy || !rejectReason.trim()}>{t('citizen.reopenReport')}</button>
+                      <button type="button" className="rounded-lg border border-white/40 bg-white/10 px-3 py-2 text-sm font-semibold text-white" onClick={() => { setRejectOpen(false); setRejectReason(''); }}>{t('common.cancel')}</button>
                     </div>
                   </form>
                 )}
@@ -232,7 +233,7 @@ export default function ReportDetail() {
       )}
       {isSolved && report.resolutionConfirmedAt && (
         <div className="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          <i className="fa-solid fa-circle-check" aria-hidden="true" /> <strong>Closed the loop:</strong> you confirmed this problem is solved on {formatDateTime(report.resolutionConfirmedAt)}. Thank you for helping verify government action!
+          <i className="fa-solid fa-circle-check" aria-hidden="true" /> <strong>{t('citizen.confirmedClosedLoop')}</strong> · {formatDateTime(report.resolutionConfirmedAt)}. {t('citizen.confirmedLoopText')}
         </div>
       )}
 
@@ -287,19 +288,19 @@ export default function ReportDetail() {
 
         <dl className="mt-4 grid gap-x-8 gap-y-2 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2">
           <div className="flex gap-2">
-            <dt className="text-slate-400">Location:</dt>
+            <dt className="text-slate-400">{t('workflow.location')}:</dt>
             <dd className="text-slate-700">
               {[report.location.sector, report.location.district, report.location.province].filter(Boolean).join(' / ') || '—'}
               {report.location.description ? ` — ${report.location.description}` : ''}
             </dd>
           </div>
           <div className="flex gap-2">
-            <dt className="text-slate-400">Submitted:</dt>
+            <dt className="text-slate-400">{t('common.date')}:</dt>
             <dd className="text-slate-700">{formatDateTime(report.createdAt)}</dd>
           </div>
           {report.resolvedAt && (
             <div className="flex gap-2">
-              <dt className="text-slate-400">Resolved:</dt>
+              <dt className="text-slate-400">{t('citizen.resolved')}:</dt>
               <dd className="text-slate-700">{formatDateTime(report.resolvedAt)}</dd>
             </div>
           )}
@@ -308,7 +309,7 @@ export default function ReportDetail() {
         {hasCoords && (
           <div className="mt-4 border-t border-slate-100 pt-4">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-slate-700"><i className="fa-solid fa-location-dot" aria-hidden="true" /> Location on map</p>
+              <p className="text-sm font-semibold text-slate-700"><i className="fa-solid fa-location-dot" aria-hidden="true" /> {t('workflow.location')}</p>
               <Link to={`/map?reportId=${report.id}`} className="text-sm font-semibold text-rwanda-blue hover:underline">Open full map →</Link>
             </div>
             <ReportMiniMap latitude={lat as number} longitude={lng as number} title={report.title} reference={report.reference} />
@@ -318,12 +319,12 @@ export default function ReportDetail() {
 
         {report.evidence.length > 0 && (
           <div className="mt-4 border-t border-slate-100 pt-4">
-            <p className="mb-2 text-sm font-semibold text-slate-700"><i className="fa-solid fa-paperclip" aria-hidden="true" /> Evidence ({report.evidence.length})</p>
+            <p className="mb-2 text-sm font-semibold text-slate-700"><i className="fa-solid fa-paperclip" aria-hidden="true" /> {t('citizen.evidence')} ({report.evidence.length})</p>
             <ul className="flex flex-wrap gap-2">
               {report.evidence.map((ev) => (
                 <li key={ev.id} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600">
                   <a href={evidenceApi.downloadUrl(report.id, ev.id)} className="hover:text-brand-primary hover:underline"><Icon name={ev.mimeType.startsWith('image/') ? 'fa-image' : 'fa-file-lines'} /> {ev.fileName}</a> <span className="text-slate-400">({formatBytes(ev.sizeBytes)})</span>
-                  <button className="ml-2 text-slate-400 hover:text-red-600" aria-label={`Delete ${ev.fileName}`} title="Delete evidence" onClick={() => handleEvidenceDelete(ev.id)}>
+                  <button className="ml-2 text-slate-400 hover:text-red-600" aria-label={t('common.delete')} title={t('common.delete')} onClick={() => handleEvidenceDelete(ev.id)}>
                     <i className="fa-solid fa-trash-can" aria-hidden="true" />
                   </button>
                 </li>
@@ -333,19 +334,19 @@ export default function ReportDetail() {
         )}
         <form onSubmit={handleEvidenceUpload} className="mt-4 border-t border-slate-100 pt-4">
           <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-64 flex-1"><label className="label" htmlFor="report-evidence">Add evidence</label><input id="report-evidence" type="file" className="input" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,video/mp4,video/webm,video/quicktime" onChange={(event) => setEvidenceFile(event.target.files?.[0] ?? null)} /></div>
-            <button className="btn-outline" disabled={!evidenceFile || evidenceBusy}>{evidenceBusy ? 'Uploading…' : 'Upload evidence'}</button>
+            <div className="min-w-64 flex-1"><label className="label" htmlFor="report-evidence">{t('citizen.addEvidence')}</label><input id="report-evidence" type="file" className="input" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,video/mp4,video/webm,video/quicktime" onChange={(event) => setEvidenceFile(event.target.files?.[0] ?? null)} /></div>
+            <button className="btn-outline" disabled={!evidenceFile || evidenceBusy}>{evidenceBusy ? t('citizen.uploading') : t('citizen.addEvidence')}</button>
           </div>
-          <p className="mt-1 text-xs text-slate-400">Images, PDF, text and video files up to 10 MB. Evidence is access-controlled.</p>
+          <p className="mt-1 text-xs text-slate-400">{t('citizen.evidenceHint')}</p>
         </form>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Timeline */}
         <section className="card p-6">
-          <h2 className="mb-4 font-bold text-slate-900">Progress timeline</h2>
+          <h2 className="mb-4 font-bold text-slate-900">{t('citizen.timeline')}</h2>
           {report.timeline.length === 0 ? (
-            <p className="text-sm text-slate-400">No history yet.</p>
+            <p className="text-sm text-slate-400">{t('common.never')}</p>
           ) : (
             <ol className="relative space-y-5 border-l-2 border-slate-100 pl-5">
               {report.timeline.map((t) => (
@@ -365,7 +366,7 @@ export default function ReportDetail() {
           {/* Updates */}
           {report.updates.length > 0 && (
             <div className="mt-6 border-t border-slate-100 pt-4">
-              <h3 className="mb-3 text-sm font-bold text-slate-900">Official updates</h3>
+              <h3 className="mb-3 text-sm font-bold text-slate-900">{t('citizen.updates')}</h3>
               <ul className="space-y-3">
                 {report.updates.map((u) => (
                   <li key={u.id} className="rounded-lg bg-sky-50 p-3 text-sm">
@@ -380,16 +381,16 @@ export default function ReportDetail() {
 
         {/* Messages */}
         <section className="card flex flex-col p-6">
-          <h2 className="mb-4 font-bold text-slate-900">Messages</h2>
+          <h2 className="mb-4 font-bold text-slate-900">{t('citizen.messages')}</h2>
           <div className="max-h-96 flex-1 space-y-3 overflow-y-auto">
             {messages.length === 0 ? (
-              <p className="text-sm text-slate-400">No messages yet. Use the box below to ask about this report.</p>
+              <p className="text-sm text-slate-400">{t('citizen.messagePlaceholder')}</p>
             ) : (
               messages.map((m) => (
                 <div key={m.id} className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${m.senderRole === 'CITIZEN' ? 'ml-auto bg-rwanda-blue text-white' : 'bg-slate-100 text-slate-700'}`}>
                   <p className="whitespace-pre-wrap">{m.message}</p>
                   <p className={`mt-1 text-[10px] ${m.senderRole === 'CITIZEN' ? 'text-sky-100' : 'text-slate-400'}`}>
-                    {m.senderRole === 'CITIZEN' ? 'You' : 'Government'} · {timeAgo(m.createdAt)}
+                    {m.senderRole === 'CITIZEN' ? t('role.CITIZEN') : t('notif.govMessage')} · {timeAgo(m.createdAt)}
                   </p>
                 </div>
               ))
@@ -398,13 +399,13 @@ export default function ReportDetail() {
           <form onSubmit={handleSend} className="mt-4 flex gap-2 border-t border-slate-100 pt-4">
             <input
               className="input"
-              placeholder="Write a message…"
+              placeholder={t('citizen.messagePlaceholder')}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               maxLength={2000}
             />
             <button className="btn-primary" disabled={sending || !draft.trim()}>
-              {sending ? '…' : 'Send'}
+              {sending ? '…' : t('common.send')}
             </button>
           </form>
         </section>
@@ -430,7 +431,7 @@ function FeedbackCard({ reportId, existing, onDone }: { reportId: number; existi
   if (existing) {
     return (
       <div className="card p-6">
-        <h2 className="font-bold text-slate-900">Your feedback</h2>
+        <h2 className="font-bold text-slate-900">{t('citizen.feedbackLabel')}</h2>
         <p className="mt-2 text-lg text-amber-500">{Array.from({ length: existing.rating }, (_, i) => <i key={`f${i}`} className="fa-solid fa-star" aria-hidden="true" />)}{Array.from({ length: 5 - existing.rating }, (_, i) => <i key={`e${i}`} className="fa-regular fa-star" aria-hidden="true" />)}</p>
         {existing.comment && <p className="mt-2 text-sm text-slate-600">“{existing.comment}”</p>}
       </div>
@@ -445,7 +446,7 @@ function FeedbackCard({ reportId, existing, onDone }: { reportId: number; existi
       await citizenApi.feedback(reportId, rating, comment || undefined);
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not submit feedback');
+      setError(err instanceof Error ? err.message : t('common.error'));
     } finally {
       setBusy(false);
     }
@@ -453,8 +454,8 @@ function FeedbackCard({ reportId, existing, onDone }: { reportId: number; existi
 
   return (
     <div className="card p-6">
-      <h2 className="font-bold text-slate-900">Rate the resolution</h2>
-      <p className="mt-1 text-sm text-slate-500">How satisfied are you with how this problem was handled?</p>
+      <h2 className="font-bold text-slate-900">{t('citizen.rateResolution')}</h2>
+      <p className="mt-1 text-sm text-slate-500">{t('citizen.rateResolution')}</p>
       {error && <div className="mt-3"><ErrorBox message={error} /></div>}
       <div className="mt-3 flex gap-1 text-3xl">
         {[1, 2, 3, 4, 5].map((n) => (
@@ -466,13 +467,13 @@ function FeedbackCard({ reportId, existing, onDone }: { reportId: number; existi
       <form onSubmit={submit} className="mt-3 space-y-3">
         <textarea
           className="input min-h-20"
-          placeholder="Optional comment…"
+          placeholder={t('citizen.feedbackPlaceholder')}
           value={comment}
           maxLength={1000}
           onChange={(e) => setComment(e.target.value)}
         />
         <button className="btn-success" disabled={busy || rating < 1}>
-          {busy ? 'Submitting…' : 'Submit feedback'}
+          {busy ? t('citizen.submitting') : t('common.submit')}
         </button>
       </form>
     </div>
@@ -489,8 +490,8 @@ function ReopenCard({ reportId, visible, onDone }: { reportId: number; visible: 
   if (done) {
     return (
       <div className="card p-6">
-        <h2 className="font-bold text-slate-900">Reopen request</h2>
-        <p className="mt-2 text-sm text-green-700"><i className="fa-solid fa-circle-check" aria-hidden="true" /> Your request was submitted. Government staff will review it.</p>
+        <h2 className="font-bold text-slate-900">{t('citizen.reopenReport')}</h2>
+        <p className="mt-2 text-sm text-green-700"><i className="fa-solid fa-circle-check" aria-hidden="true" /> {t('citizen.reopenThanks')}</p>
       </div>
     );
   }
@@ -504,7 +505,7 @@ function ReopenCard({ reportId, visible, onDone }: { reportId: number; visible: 
       setDone(true);
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not submit request');
+      setError(err instanceof Error ? err.message : t('common.error'));
     } finally {
       setBusy(false);
     }
@@ -512,20 +513,20 @@ function ReopenCard({ reportId, visible, onDone }: { reportId: number; visible: 
 
   return (
     <div className="card p-6">
-      <h2 className="font-bold text-slate-900">Problem not fixed?</h2>
-      <p className="mt-1 text-sm text-slate-500">Request reopening — a government officer will review your explanation.</p>
+      <h2 className="font-bold text-slate-900">{t('citizen.problemNotSolved')}</h2>
+      <p className="mt-1 text-sm text-slate-500">{t('citizen.optionBText')}</p>
       {error && <div className="mt-3"><ErrorBox message={error} /></div>}
       <form onSubmit={submit} className="mt-3 space-y-3">
         <textarea
           className="input min-h-20"
-          placeholder="Explain what is still wrong…"
+          placeholder={t('citizen.reopenReasonPlaceholder')}
           value={reason}
           maxLength={500}
           onChange={(e) => setReason(e.target.value)}
           required
         />
         <button className="btn-danger" disabled={busy}>
-          {busy ? 'Sending…' : 'Request reopen'}
+          {busy ? t('common.sending') : t('citizen.reopenReport')}
         </button>
       </form>
     </div>

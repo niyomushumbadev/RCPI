@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { workflowApi } from '../../lib/api';
 import { StatusBadge, formatDateTime } from '../../lib/format';
 import { PageHeader, Spinner, ErrorBox, EmptyState, Pagination } from '../../components/ui';
+import { t } from '../../translations';
 
 interface ArchivedReport {
   id: number;
@@ -40,24 +41,24 @@ export default function WorkflowArchive() {
     workflowApi
       .archive(q || undefined, page)
       .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load archived reports'))
+      .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
   }, [q, page]);
 
   return (
     <div>
       <PageHeader
-        title="Closed archive"
+        title={t('workflow.archiveTitle')}
         subtitle={
           data
-            ? `${data.pagination.total} archived report${data.pagination.total === 1 ? '' : 's'} — confirmed solved by citizens and preserved for audit and analytics.`
-            : 'Reports confirmed by citizens, closed and automatically archived.'
+            ? `${data.pagination.total} ${t('workflow.archiveSubtitle')}`
+            : t('workflow.archiveSubtitle')
         }
       />
 
       <input
         className="input mb-4 max-w-md"
-        placeholder="Search by reference or title…"
+        placeholder={t('common.searchPlaceholder')}
         value={q}
         onChange={(e) => {
           setPage(1);
@@ -69,7 +70,7 @@ export default function WorkflowArchive() {
       {loading && <Spinner />}
 
       {!loading && !error && data && data.reports.length === 0 && (
-        <EmptyState icon="fa-box-archive" title="No archived reports yet" hint="Reports appear here automatically once citizens confirm their resolution." />
+        <EmptyState icon="fa-box-archive" title={t('workflow.noArchived')} hint={t('workflow.archiveSubtitle')} />
       )}
 
       {!loading && !error && data && data.reports.length > 0 && (
@@ -83,7 +84,7 @@ export default function WorkflowArchive() {
                     <StatusBadge status={r.status} />
                     <span className="badge bg-slate-100 text-slate-600">{r.categoryIcon ? `${r.categoryIcon} ` : ''}{r.categoryName}</span>
                     <span className="badge bg-emerald-50 text-emerald-700">
-                      <i className="fa-solid fa-box-archive" aria-hidden="true" /> Archived
+                      <i className="fa-solid fa-box-archive" aria-hidden="true" /> {t('workflow.archived')}
                     </span>
                   </div>
                   <h2 className="mt-1 text-lg font-bold text-slate-900">{r.title}</h2>
@@ -92,7 +93,7 @@ export default function WorkflowArchive() {
                   </p>
                   {r.resolutionDescription && (
                     <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-                      <strong className="text-slate-700">Resolution:</strong> {r.resolutionDescription}
+                      <strong className="text-slate-700">{t('workflow.resolution')}:</strong> {r.resolutionDescription}
                     </p>
                   )}
                   <p className="mt-2 text-xs text-slate-400">
@@ -101,7 +102,7 @@ export default function WorkflowArchive() {
                   </p>
                 </div>
                 <Link to={`/workflow/reports/${r.id}`} className="btn-outline shrink-0 text-sm">
-                  Full record →
+                  {t('workflow.reportDetail')} →
                 </Link>
               </div>
             </div>

@@ -6,20 +6,18 @@ import { StatusBadge } from '../../lib/format';
 import { Icon } from '../../components/icons';
 import { PageHeader, Spinner, DashboardError, StatCard, EmptyState } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
-import { getLanguage, translations } from '../../translations';
+import { t } from '../../translations';
 
 export default function CitizenDashboard() {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const language = getLanguage();
-  const t = translations[language];
 
   useEffect(() => {
     citizenApi.dashboard()
       .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load dashboard'))
+      .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -28,27 +26,27 @@ export default function CitizenDashboard() {
   if (!data) return null;
 
   const quickAccessCards = [
-    { to: '/citizen/report/create', label: 'Report a problem', icon: 'fa-file-pen', hint: 'Problem category + description' },
-    { to: '/citizen/report/create', label: 'Take/upload photo', icon: 'fa-camera', hint: 'Attach supporting evidence' },
-    { to: '/citizen/report/create', label: 'Upload video', icon: 'fa-video', hint: 'Add a short video clip' },
-    { to: '/citizen/report/create', label: 'GPS location', icon: 'fa-location-dot', hint: 'Use current location' },
-    { to: '/citizen/reports', label: 'My reports', icon: 'fa-clipboard-list', hint: 'Track all submissions' },
-    { to: '/citizen/assistant', label: 'AI assistant', icon: 'fa-robot', hint: 'Ask how to use R-CPI' },
-    { to: '/notifications', label: 'Notifications', icon: 'fa-bell', hint: 'Status updates and alerts' },
-    { to: '/profile', label: 'Profile', icon: 'fa-user', hint: 'Account and contact info' },
+    { to: '/citizen/report/create', label: t('nav.reportProblem'), icon: 'fa-file-pen', hint: t('citizen.categoryLabel') + ' + ' + t('citizen.descriptionLabel') },
+    { to: '/citizen/report/create', label: t('citizen.evidenceLabel'), icon: 'fa-camera', hint: t('citizen.evidenceHint') },
+    { to: '/citizen/report/create', label: t('citizen.gpsLabel'), icon: 'fa-video', hint: t('citizen.gpsAuto') },
+    { to: '/citizen/report/create', label: t('citizen.gpsLabel'), icon: 'fa-location-dot', hint: t('citizen.gpsAuto') },
+    { to: '/citizen/reports', label: t('nav.myReports'), icon: 'fa-clipboard-list', hint: t('citizen.myReportsSubtitle') },
+    { to: '/citizen/assistant', label: t('nav.aiAssistant'), icon: 'fa-robot', hint: t('citizen.aiAssistantSubtitle') },
+    { to: '/notifications', label: t('nav.notifications'), icon: 'fa-bell', hint: t('citizen.notificationsSubtitle') },
+    { to: '/profile', label: t('nav.profile'), icon: 'fa-user', hint: t('citizen.profileSubtitle') },
   ];
 
   return (
     <div>
       <PageHeader
-        title={`${t.welcome} ${data.citizen.firstName}`}
-        subtitle={t.dashboardSubtitle}
+        title={`${t('citizen.welcome')} ${data.citizen.firstName}`}
+        subtitle={t('citizen.dashboardSubtitle')}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link to="/" className="btn-outline text-sm">Home</Link>
-            <Link to="/dashboard" className="btn-outline text-sm">Dashboard</Link>
+            <Link to="/" className="btn-outline text-sm">{t('common.home')}</Link>
+            <Link to="/dashboard" className="btn-outline text-sm">{t('nav.dashboard')}</Link>
             <Link to="/citizen/report/create" className="btn-primary">
-              + {t.reportProblem}
+              + {t('nav.reportProblem')}
             </Link>
           </div>
         }
@@ -56,16 +54,16 @@ export default function CitizenDashboard() {
 
       <div className="mb-6 card p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">Citizen application</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('nav.govPortal')}</h2>
           <span className="rounded-full bg-rwanda-blue/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-rwanda-blue">
             Rwanda
           </span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {quickAccessCards.map((card) => (
+          {quickAccessCards.map((card, index) => (
             <Link
-              key={card.label}
+              key={`${card.label}-${index}`}
               to={card.to}
               className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-rwanda-blue/30 hover:bg-rwanda-blue/5"
             >
@@ -81,12 +79,12 @@ export default function CitizenDashboard() {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard icon="fa-clipboard-list" label={t.totalReports} value={data.stats.total} tone="blue" />
-        <StatCard icon="⏳" label={t.awaitingReview} value={data.stats.submitted} tone="amber" />
-        <StatCard icon="fa-magnifying-glass" label={t.underReview} value={data.stats.underReview} tone="blue" />
-        <StatCard icon="fa-screwdriver-wrench" label={t.inProgress} value={data.stats.inProgress} tone="slate" />
-        <StatCard icon="fa-circle-check" label={t.resolved} value={data.stats.resolved} tone="green" />
-        <StatCard icon="fa-ban" label={t.rejected} value={data.stats.rejected} tone="red" />
+        <StatCard icon="fa-clipboard-list" label={t('citizen.totalReports')} value={data.stats.total} tone="blue" />
+        <StatCard icon="⏳" label={t('citizen.awaitingReview')} value={data.stats.submitted} tone="amber" />
+        <StatCard icon="fa-magnifying-glass" label={t('citizen.underReview')} value={data.stats.underReview} tone="blue" />
+        <StatCard icon="fa-screwdriver-wrench" label={t('citizen.inProgress')} value={data.stats.inProgress} tone="slate" />
+        <StatCard icon="fa-circle-check" label={t('citizen.resolved')} value={data.stats.resolved} tone="green" />
+        <StatCard icon="fa-ban" label={t('citizen.rejected')} value={data.stats.rejected} tone="red" />
       </div>
 
       {/* Confirm resolution — close the loop on solved reports */}
@@ -95,8 +93,8 @@ export default function CitizenDashboard() {
           <div className="flex flex-wrap items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-600 text-lg text-white" aria-hidden="true">🎉</span>
             <div className="min-w-0 flex-1">
-              <h2 className="font-bold text-slate-900">Government solved {data.stats.awaitingConfirmation === 1 ? 'a report' : `${data.stats.awaitingConfirmation} reports`} of yours — confirm it!</h2>
-              <p className="mt-0.5 text-sm text-slate-600">Open each report, check the result on the ground, then confirm so we can close the loop.</p>
+              <h2 className="font-bold text-slate-900">{t('citizen.confirmResolutionPrompt')}</h2>
+              <p className="mt-0.5 text-sm text-slate-600">{t('citizen.optionAText')}</p>
             </div>
           </div>
           <ul className="mt-4 divide-y divide-green-100">
@@ -107,10 +105,10 @@ export default function CitizenDashboard() {
                     <p className="truncate font-medium text-slate-800">{r.title}</p>
                     <p className="text-xs text-slate-500">
                       {r.reference}
-                      {r.departmentName ? ` · handled by ${r.departmentName}` : ''}
+                      {r.departmentName ? ` · ${t('admin.departments')}: ${r.departmentName}` : ''}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-full bg-green-600 px-3 py-1 text-xs font-bold text-white">Confirm →</span>
+                  <span className="shrink-0 rounded-full bg-green-600 px-3 py-1 text-xs font-bold text-white">{t('citizen.confirmSolved')} →</span>
                 </Link>
               </li>
             ))}
@@ -122,14 +120,14 @@ export default function CitizenDashboard() {
         {/* Recent reports */}
         <div className="card p-5 lg:col-span-2">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-bold text-slate-900">{t.recentReports}</h2>
-            <Link to="/citizen/reports" className="text-sm text-rwanda-blue hover:underline">{t.viewAll}</Link>
+            <h2 className="font-bold text-slate-900">{t('citizen.recentReports')}</h2>
+            <Link to="/citizen/reports" className="text-sm text-rwanda-blue hover:underline">{t('common.viewAll')}</Link>
           </div>
           {data.recentReports.length === 0 ? (
             <EmptyState
               icon="fa-file-pen"
-              title="No reports yet"
-              hint="When you notice a problem in your community — a broken water point, a damaged road — submit your first report."
+              title={t('citizen.noReports')}
+              hint={t('citizen.noReportsHint')}
             />
           ) : (
             <ul className="divide-y divide-slate-100">
@@ -153,27 +151,26 @@ export default function CitizenDashboard() {
         {/* Quick links */}
         <div className="space-y-4">
           <div className="card p-5">
-            <h2 className="mb-3 font-bold text-slate-900">Quick actions</h2>
+            <h2 className="mb-3 font-bold text-slate-900">{t('common.actions')}</h2>
             <div className="space-y-2">
-              <Link to="/citizen/report/create" className="btn-primary w-full"><i className="fa-solid fa-file-pen" aria-hidden="true" /> {t.reportProblem}</Link>
-              <Link to="/map" className="btn-outline w-full"><i className="fa-solid fa-map-location-dot" aria-hidden="true" /> {t.communityMap}</Link>
-              <Link to="/community" className="btn-outline w-full"><i className="fa-solid fa-globe" aria-hidden="true" /> {t.communityInsights}</Link>
+              <Link to="/citizen/report/create" className="btn-primary w-full"><i className="fa-solid fa-file-pen" aria-hidden="true" /> {t('nav.reportProblem')}</Link>
+              <Link to="/map" className="btn-outline w-full"><i className="fa-solid fa-map-location-dot" aria-hidden="true" /> {t('nav.communityMap')}</Link>
+              <Link to="/community" className="btn-outline w-full"><i className="fa-solid fa-globe" aria-hidden="true" /> {t('citizen.communityInsights')}</Link>
             </div>
           </div>
           <div className="card bg-rwanda-blue/5 p-5">
-            <h2 className="mb-2 font-bold text-slate-900"><i className="fa-solid fa-bell" aria-hidden="true" /> Notifications</h2>
+            <h2 className="mb-2 font-bold text-slate-900"><i className="fa-solid fa-bell" aria-hidden="true" /> {t('nav.notifications')}</h2>
             <p className="text-sm text-slate-600">
-              You have <strong>{data.unreadNotifications}</strong> unread notification{data.unreadNotifications === 1 ? '' : 's'}.
+              {t('citizen.unreadNotifications')}: <strong>{data.unreadNotifications}</strong>.
             </p>
             <Link to="/notifications" className="mt-3 inline-block text-sm font-semibold text-rwanda-blue hover:underline">
-              Check notifications →
+              {t('nav.viewAllNotifications')} →
             </Link>
           </div>
           {user?.role === 'CITIZEN' && (
             <div className="card bg-green-50 p-5">
               <p className="text-sm text-slate-600">
-                <strong>Did you know?</strong> You can submit reports anonymously. Your identity is never shown to
-                government staff when anonymity is chosen.
+                <strong>{t('citizen.anonymousLabel')}</strong> — {t('citizen.anonymousHint')}
               </p>
             </div>
           )}

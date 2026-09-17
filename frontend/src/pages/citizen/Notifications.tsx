@@ -5,6 +5,7 @@ import type { Notification as Notif } from '../../types';
 import { PageHeader, Spinner, ErrorBox, EmptyState, Pagination } from '../../components/ui';
 import { Icon } from '../../components/icons';
 import { timeAgo } from '../../lib/format';
+import { t } from '../../translations';
 
 export default function Notifications() {
   const [page, setPage] = useState(1);
@@ -17,7 +18,7 @@ export default function Notifications() {
     notificationApi
       .list(page)
       .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load notifications'))
+      .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
   }, [page]);
 
@@ -51,11 +52,11 @@ export default function Notifications() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        title="Notifications"
-        subtitle={data ? `${data.unreadCount} unread` : undefined}
+        title={t('citizen.notificationsTitle')}
+        subtitle={data ? `${data.unreadCount} ${t('citizen.unreadNotifications')}` : undefined}
         actions={
           <button className="btn-outline text-sm" onClick={markAll} disabled={!data || data.unreadCount === 0}>
-            Mark all as read
+            {t('nav.markAllRead')}
           </button>
         }
       />
@@ -64,7 +65,7 @@ export default function Notifications() {
       {loading && <Spinner />}
 
       {!loading && !error && data && data.notifications.length === 0 && (
-        <EmptyState icon="fa-bell-slash" title="No notifications" hint="Updates about your reports will appear here." />
+        <EmptyState icon="fa-bell-slash" title={t('nav.noNotifications')} hint={t('citizen.noNotifications')} />
       )}
 
       {!loading && !error && data && data.notifications.length > 0 && (
@@ -80,19 +81,19 @@ export default function Notifications() {
               <div className="flex shrink-0 items-center gap-2">
                 {n.reportId && (
                   <Link to={`/reports/${n.reportId}`} className="text-xs font-semibold text-rwanda-blue hover:underline">
-                    View report
+                    {t('common.view')}
                   </Link>
                 )}
                 {!n.isRead && (
                   <button className="text-xs text-slate-400 hover:text-slate-600" onClick={() => markRead(n.id)}>
-                    Mark read
+                    {t('common.close')}
                   </button>
                 )}
                 <button
                   className="text-xs text-slate-400 hover:text-red-600"
                   onClick={() => remove(n.id)}
-                  aria-label="Delete notification"
-                  title="Delete"
+                  aria-label={t('common.delete')}
+                  title={t('common.delete')}
                 >
                   <i className="fa-solid fa-trash-can" aria-hidden="true" />
                 </button>

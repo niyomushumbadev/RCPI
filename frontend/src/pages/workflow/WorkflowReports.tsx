@@ -5,19 +5,7 @@ import type { WorkflowReport } from '../../types';
 import { StatusBadge, formatDate, timeAgo } from '../../lib/format';
 import { PageHeader, Spinner, ErrorBox, EmptyState, Pagination } from '../../components/ui';
 import { CategoryIcon } from '../../components/icons';
-
-const FILTERS = [
-  { value: 'ALL', label: 'All' },
-  { value: 'SUBMITTED', label: 'Submitted' },
-  { value: 'RECEIVED', label: 'Received' },
-  { value: 'UNDER_REVIEW', label: 'Under review' },
-  { value: 'VERIFIED', label: 'Verified' },
-  { value: 'ASSIGNED', label: 'Assigned' },
-  { value: 'IN_PROGRESS', label: 'In progress' },
-  { value: 'ESCALATED', label: 'Escalated' },
-  { value: 'RESOLVED', label: 'Resolved' },
-  { value: 'REOPEN_REQUESTED', label: 'Reopen requested' },
-];
+import { t } from '../../translations';
 
 export default function WorkflowReports() {
   const [params, setParams] = useSearchParams();
@@ -33,7 +21,7 @@ export default function WorkflowReports() {
     workflowApi
       .reports(status, page)
       .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load reports'))
+      .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
   }, [status, page]);
 
@@ -49,10 +37,21 @@ export default function WorkflowReports() {
 
   return (
     <div>
-      <PageHeader title="Reports queue" subtitle={data ? `${data.pagination.total} reports` : 'All citizen reports in the review pipeline.'} />
+      <PageHeader title={t('workflow.queueTitle')} subtitle={data ? `${data.pagination.total} ${t('common.results')}` : t('workflow.queueSubtitle')} />
 
       <div className="mb-4 flex flex-wrap gap-2">
-        {FILTERS.map((f) => (
+        {[
+          { value: 'ALL', label: t('common.all') },
+          { value: 'SUBMITTED', label: t('status.SUBMITTED') },
+          { value: 'RECEIVED', label: t('status.RECEIVED') },
+          { value: 'UNDER_REVIEW', label: t('status.UNDER_REVIEW') },
+          { value: 'VERIFIED', label: t('status.VERIFIED') },
+          { value: 'ASSIGNED', label: t('status.ASSIGNED') },
+          { value: 'IN_PROGRESS', label: t('status.IN_PROGRESS') },
+          { value: 'ESCALATED', label: t('status.ESCALATED') },
+          { value: 'RESOLVED', label: t('status.RESOLVED') },
+          { value: 'REOPEN_REQUESTED', label: t('status.REOPEN_REQUESTED') },
+        ].map((f) => (
           <button
             key={f.value}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
@@ -69,7 +68,7 @@ export default function WorkflowReports() {
       {loading && <Spinner />}
 
       {!loading && !error && data && data.reports.length === 0 && (
-        <EmptyState icon="fa-inbox" title="No reports in this view" hint="Try another status filter." />
+        <EmptyState icon="fa-inbox" title={t('common.none')} hint={t('workflow.queueSubtitle')} />
       )}
 
       {!loading && !error && data && data.reports.length > 0 && (
@@ -77,11 +76,11 @@ export default function WorkflowReports() {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-4 py-3">Report</th>
-                <th className="px-4 py-3">Citizen</th>
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Age</th>
+                <th className="px-4 py-3">{t('workflow.reportDetail')}</th>
+                <th className="px-4 py-3">{t('role.CITIZEN')}</th>
+                <th className="px-4 py-3">{t('workflow.location')}</th>
+                <th className="px-4 py-3">{t('admin.status')}</th>
+                <th className="px-4 py-3">{t('common.date')}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -99,7 +98,7 @@ export default function WorkflowReports() {
                         <p className="text-xs text-slate-400">{r.citizen.email}</p>
                       </>
                     ) : (
-                      <span className="badge bg-slate-100 text-slate-500"><i className="fa-solid fa-user-secret" aria-hidden="true" /> Anonymous</span>
+                      <span className="badge bg-slate-100 text-slate-500"><i className="fa-solid fa-user-secret" aria-hidden="true" /> {t('workflow.anonymousCitizen')}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
@@ -108,7 +107,7 @@ export default function WorkflowReports() {
                   <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
                   <td className="px-4 py-3 text-xs text-slate-400" title={formatDate(r.createdAt)}>{timeAgo(r.createdAt)}</td>
                   <td className="px-4 py-3 text-right">
-                    <Link to={`/workflow/${r.id}`} className="btn-outline !px-3 !py-1 text-xs">Open</Link>
+                    <Link to={`/workflow/${r.id}`} className="btn-outline !px-3 !py-1 text-xs">{t('common.view')}</Link>
                   </td>
                 </tr>
               ))}

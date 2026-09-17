@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { aiApi, citizenApi } from '../../lib/api';
 import type { AIAnalysis, ReportListItem } from '../../types';
-import { getLanguage } from '../../translations';
+import { t } from '../../translations';
 import { PageHeader, Spinner, ErrorBox } from '../../components/ui';
 
 interface ChatItem { id: number; from: 'citizen' | 'assistant'; text: string }
@@ -58,7 +58,7 @@ export default function AIAssistant() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [question, setQuestion] = useState('');
-  const [chat, setChat] = useState<ChatItem[]>([{ id: 1, from: 'assistant', text: 'Hello. I am the R-CPI citizen assistant. Ask how to report a problem, track a report, use the map, manage your account, or understand AI analysis.' }]);
+  const [chat, setChat] = useState<ChatItem[]>([{ id: 1, from: 'assistant', text: t('citizen.aiAssistantSubtitle') }]);
 
   useEffect(() => {
     citizenApi.reports()
@@ -66,7 +66,7 @@ export default function AIAssistant() {
         setReports(items.slice(0, 5));
         setSelectedId(items[0]?.id ?? null);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load reports for AI review'))
+      .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -97,26 +97,26 @@ export default function AIAssistant() {
     setQuestion('');
   }
 
-  if (loading) return <Spinner label="Loading AI assistant…" />;
+  if (loading) return <Spinner label={t('common.loading')} />;
 
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
-        title="AI Assistant"
-        subtitle="Get quick classification, risk and prioritisation guidance for recent reports."
+        title={t('citizen.aiAssistantTitle')}
+        subtitle={t('citizen.aiAssistantSubtitle')}
       />
 
       {error && <ErrorBox message={error} />}
 
       <section className="card mb-6 p-5">
-        <div className="flex items-center justify-between gap-3"><div><h2 className="font-bold text-slate-900">Ask the R-CPI assistant</h2><p className="mt-1 text-sm text-slate-500">Ask any question about using this system. Responses are guidance, not government decisions.</p></div><span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">RW · EN · FR</span></div>
+        <div className="flex items-center justify-between gap-3"><div><h2 className="font-bold text-slate-900">{t('citizen.aiAssistantTitle')}</h2><p className="mt-1 text-sm text-slate-500">{t('citizen.aiAssistantSubtitle')}</p></div><span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">RW · EN · FR</span></div>
         <div className="mt-4 max-h-56 space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-3">{chat.map((item) => <div key={item.id} className={`flex ${item.from === 'citizen' ? 'justify-end' : 'justify-start'}`}><p className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${item.from === 'citizen' ? 'bg-rwanda-blue text-white' : 'border border-slate-200 bg-white text-slate-700'}`}>{item.text}</p></div>)}</div>
-        <form className="mt-3 flex gap-2" onSubmit={askAssistant}><input className="input" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask: How do I report a drainage problem?" aria-label="Ask the R-CPI assistant" /><button className="btn-primary" disabled={!question.trim()}>Ask</button></form>
+        <form className="mt-3 flex gap-2" onSubmit={askAssistant}><input className="input" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={t('citizen.messagePlaceholder')} aria-label={t('citizen.aiAssistantTitle')} /><button className="btn-primary" disabled={!question.trim()}>{t('common.send')}</button></form>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1.9fr]">
         <aside className="card p-4">
-          <h2 className="mb-3 text-sm font-bold uppercase tracking-[0.14em] text-slate-400">Recent reports</h2>
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-[0.14em] text-slate-400">{t('citizen.recentReports')}</h2>
           <div className="space-y-2">
             {reports.length === 0 ? (
               <p className="text-sm text-slate-500">No reports available to review yet.</p>

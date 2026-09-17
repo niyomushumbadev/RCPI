@@ -1,8 +1,11 @@
 import type { ReportStatus, Urgency } from '../types';
 import { statusFa, urgencyFa } from '../components/icons';
+import { t } from '../translations';
 
-/** Human-friendly label for a report status */
+/** Human-friendly label for a report status, in the active language */
 export function statusLabel(status: string): string {
+  const translated = t(`status.${status}`);
+  if (translated !== `status.${status}`) return translated;
   return status
     .split('_')
     .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
@@ -43,31 +46,37 @@ export function UrgencyBadge({ urgency }: { urgency: string }) {
   return (
     <span className={`badge ${cls}`}>
       <i className={`${urgencyFa(urgency)} text-[9px]`} aria-hidden="true" />
-      {urgency.charAt(0) + urgency.slice(1).toLowerCase()}
+      {t(`urgency.${urgency}`, undefined) === `urgency.${urgency}` ? urgency.charAt(0) + urgency.slice(1).toLowerCase() : t(`urgency.${urgency}`)}
     </span>
   );
 }
 
 export function timeAgo(iso: string): string {
+  const lang = typeof window !== 'undefined' ? (window.localStorage.getItem('rcpi-language') || 'rw') : 'rw';
+  const locale = lang === 'fr' ? 'fr-FR' : 'en-GB';
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return 'just now';
+  if (s < 60) return lang === 'rw' ? 'ubu nono' : lang === 'fr' ? 'à l\'instant' : 'just now';
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m} min ago`;
+  if (m < 60) return lang === 'rw' ? `iminota ${m} ishyize` : `${m} min`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h} hour${h > 1 ? 's' : ''} ago`;
+  if (h < 24) return lang === 'rw' ? `amasaha ${h} ashize` : lang === 'fr' ? `il y a ${h} h` : `${h}h ago`;
   const d = Math.floor(h / 24);
-  if (d < 30) return `${d} day${d > 1 ? 's' : ''} ago`;
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (d < 30) return lang === 'rw' ? `iminsi ${d} ishize` : lang === 'fr' ? `il y a ${d} j` : `${d}d ago`;
+  return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export function formatDate(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const lang = typeof window !== 'undefined' ? (window.localStorage.getItem('rcpi-language') || 'rw') : 'rw';
+  const locale = lang === 'fr' ? 'fr-FR' : 'en-GB';
+  return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export function formatDateTime(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('en-GB', {
+  const lang = typeof window !== 'undefined' ? (window.localStorage.getItem('rcpi-language') || 'rw') : 'rw';
+  const locale = lang === 'fr' ? 'fr-FR' : 'en-GB';
+  return new Date(iso).toLocaleString(locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -83,9 +92,9 @@ export function formatBytes(bytes: number): string {
 }
 
 export const URGENCY_OPTIONS: Array<{ value: Urgency; label: string }> = [
-  { value: 'LOW', label: 'Low' },
-  { value: 'MEDIUM', label: 'Medium' },
-  { value: 'HIGH', label: 'High' },
+  { value: 'LOW', label: t('urgency.LOW') },
+  { value: 'MEDIUM', label: t('urgency.MEDIUM') },
+  { value: 'HIGH', label: t('urgency.HIGH') },
 ];
 
 export type { ReportStatus, Urgency };

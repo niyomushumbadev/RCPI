@@ -5,15 +5,7 @@ import type { ReportListItem } from '../../types';
 import { StatusBadge, UrgencyBadge, formatDate } from '../../lib/format';
 import { CategoryIcon } from '../../components/icons';
 import { PageHeader, Spinner, ErrorBox, EmptyState, Pagination } from '../../components/ui';
-
-const FILTERS = [
-  { value: 'ALL', label: 'All' },
-  { value: 'SUBMITTED', label: 'Submitted' },
-  { value: 'UNDER_REVIEW', label: 'Under review' },
-  { value: 'IN_PROGRESS', label: 'In progress' },
-  { value: 'RESOLVED', label: 'Resolved' },
-  { value: 'REJECTED', label: 'Rejected' },
-];
+import { t } from '../../translations';
 
 export default function MyReports() {
   const [params, setParams] = useSearchParams();
@@ -29,7 +21,7 @@ export default function MyReports() {
     citizenApi
       .reports(status, page)
       .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load reports'))
+      .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
   }, [status, page]);
 
@@ -43,12 +35,21 @@ export default function MyReports() {
     setParams(nextParams);
   }
 
+  const FILTERS = [
+    { value: 'ALL', label: t('common.all') },
+    { value: 'SUBMITTED', label: t('status.SUBMITTED') },
+    { value: 'UNDER_REVIEW', label: t('status.UNDER_REVIEW') },
+    { value: 'IN_PROGRESS', label: t('status.IN_PROGRESS') },
+    { value: 'RESOLVED', label: t('status.RESOLVED') },
+    { value: 'REJECTED', label: t('status.REJECTED') },
+  ];
+
   return (
     <div>
       <PageHeader
-        title="My reports"
-        subtitle="Every problem you have reported and where it stands."
-        actions={<Link to="/citizen/report/create" className="btn-primary">+ New report</Link>}
+        title={t('citizen.myReportsTitle')}
+        subtitle={t('citizen.myReportsSubtitle')}
+        actions={<Link to="/citizen/report/create" className="btn-primary">+ {t('citizen.newReport')}</Link>}
       />
 
       {/* Filter chips */}
@@ -70,7 +71,7 @@ export default function MyReports() {
       {loading && <Spinner />}
 
       {!loading && !error && data && data.reports.length === 0 && (
-        <EmptyState icon="fa-inbox" title="No reports found" hint="Try a different filter, or submit a new report to get started." />
+        <EmptyState icon="fa-inbox" title={t('citizen.noReports')} hint={t('citizen.noReportsHint')} />
       )}
 
       {!loading && !error && data && data.reports.length > 0 && (
@@ -85,7 +86,7 @@ export default function MyReports() {
                   <UrgencyBadge urgency={r.urgency} />
                 </div>
                 <p className="mt-0.5 text-xs text-slate-400">
-                  {r.reference} · {r.categoryName} · {r.districtName}{r.sectorName ? ` / ${r.sectorName}` : ''} · submitted {formatDate(r.createdAt)}
+                  {r.reference} · {r.categoryName} · {r.districtName}{r.sectorName ? ` / ${r.sectorName}` : ''} · {t('common.submit')}: {formatDate(r.createdAt)}
                 </p>
               </div>
               <span className="text-slate-300">›</span>

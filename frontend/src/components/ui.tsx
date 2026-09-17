@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Icon } from './icons';
+import { t } from '../translations';
 
 export function PageHeader({ title, subtitle, icon, actions }: { title: string; subtitle?: string; icon?: string; actions?: ReactNode }) {
   return (
@@ -20,12 +21,12 @@ export function PageHeader({ title, subtitle, icon, actions }: { title: string; 
   );
 }
 
-export function Spinner({ label = 'Loading…' }: { label?: string }) {
+export function Spinner({ label }: { label?: string }) {
   return (
     <div className="flex items-center justify-center py-16">
       <div className="flex flex-col items-center gap-3">
         <Icon name="fa-circle-notch" className="animate-spin text-2xl text-brand-primary" />
-        <span className="text-sm text-slate-400">{label}</span>
+        <span className="text-sm text-slate-400">{label ?? t('common.loading')}</span>
       </div>
     </div>
   );
@@ -47,11 +48,11 @@ export function DashboardError({ message, onRetry }: { message: string; onRetry?
       <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full text-xl ${authError ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'}`}>
         <Icon name={authError ? 'fa-lock' : 'fa-triangle-exclamation'} />
       </div>
-      <h2 className="mt-4 text-xl font-bold text-brand-navy">{authError ? 'Your secure session needs attention' : 'This dashboard needs a quick retry'}</h2>
+      <h2 className="mt-4 text-xl font-bold text-brand-navy">{authError ? t('error.sessionExpired') : t('common.error')}</h2>
       <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600">{message}</p>
       <div className="mt-5 flex flex-wrap justify-center gap-3">
-        {onRetry && <button className="btn-primary" onClick={onRetry}>Try again</button>}
-        <a className="btn-outline" href={authError ? '/login' : '/'}>{authError ? 'Sign in again' : 'Return home'}</a>
+        {onRetry && <button className="btn-primary" onClick={onRetry}>{t('common.next')}</button>}
+        <a className="btn-outline" href={authError ? '/login' : '/'}>{authError ? t('auth.signIn') : t('common.home')}</a>
       </div>
     </section>
   );
@@ -74,13 +75,13 @@ export function Pagination({ page, totalPages, onChange }: { page: number; total
   return (
     <div className="mt-4 flex items-center justify-between">
       <button className="btn-outline text-xs" disabled={page <= 1} onClick={() => onChange(page - 1)}>
-        <Icon name="fa-arrow-left" className="text-xs" /> Previous
+        <Icon name="fa-arrow-left" className="text-xs" /> {t('common.previous')}
       </button>
       <span className="text-xs text-slate-500">
-        Page {page} of {totalPages}
+        {t('common.page')} {page} {t('common.of')} {totalPages}
       </span>
       <button className="btn-outline text-xs" disabled={page >= totalPages} onClick={() => onChange(page + 1)}>
-        Next <Icon name="fa-arrow-right" className="text-xs" />
+        {t('common.next')} <Icon name="fa-arrow-right" className="text-xs" />
       </button>
     </div>
   );

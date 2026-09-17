@@ -3,6 +3,7 @@ import { adminApi } from '../../lib/api';
 import type { AuditLog } from '../../types';
 import { PageHeader, Spinner, ErrorBox, EmptyState, Pagination } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
+import { t } from '../../translations';
 
 const RESOURCE_TYPES = ['USER', 'REPORT', 'CATEGORY', 'DEPARTMENT', 'ALERT'];
 
@@ -20,20 +21,20 @@ export default function AdminAuditLogs() {
     adminApi
       .auditLogs(page, action || undefined, resourceType || undefined)
       .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load audit logs'))
+      .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
   }, [page, action, resourceType]);
 
   return (
     <div className="space-y-6">
       <div className="gov-card p-6">
-        <PageHeader title="Audit logs" subtitle={data ? `${data.pagination.total} entries` : 'Complete security and activity trail.'} />
+        <PageHeader title={t('admin.auditLogsTitle')} subtitle={data ? `${data.pagination.total} ${t('common.results')}` : t('admin.auditLogsSubtitle')} />
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <input
           className="input w-64"
-          placeholder="Filter by action (e.g. LOGIN)…"
+          placeholder={t('common.searchPlaceholder')}
           value={action}
           onChange={(e) => {
             setPage(1);
@@ -48,7 +49,7 @@ export default function AdminAuditLogs() {
             setResourceType(e.target.value);
           }}
         >
-          <option value="">All resources</option>
+          <option value="">{t('common.all')}</option>
           {RESOURCE_TYPES.map((rt) => (
             <option key={rt} value={rt}>{rt}</option>
           ))}
@@ -59,7 +60,7 @@ export default function AdminAuditLogs() {
       {loading && <Spinner />}
 
       {!loading && !error && data && data.logs.length === 0 && (
-        <EmptyState icon="fa-box-archive" title="No audit entries" hint="Adjust the filters to see more results." />
+        <EmptyState icon="fa-box-archive" title={t('common.none')} hint={t('admin.auditLogsSubtitle')} />
       )}
 
       {!loading && !error && data && data.logs.length > 0 && (
@@ -67,12 +68,12 @@ export default function AdminAuditLogs() {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                <th className="px-4 py-3">When</th>
-                <th className="px-4 py-3">Actor</th>
-                <th className="px-4 py-3">Action</th>
-                <th className="px-4 py-3">Resource</th>
+                <th className="px-4 py-3">{t('admin.auditTime')}</th>
+                <th className="px-4 py-3">{t('admin.auditActor')}</th>
+                <th className="px-4 py-3">{t('admin.auditAction')}</th>
+                <th className="px-4 py-3">{t('admin.auditResource')}</th>
                 <th className="px-4 py-3">IP</th>
-                <th className="px-4 py-3">Detail</th>
+                <th className="px-4 py-3">{t('common.details')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

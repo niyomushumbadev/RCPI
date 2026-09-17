@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { geoApi } from '../../lib/api';
 import type { District, Province, Sector } from '../../types';
 import RwandaFlagLogo from '../../components/RwandaFlagLogo';
+import { t } from '../../translations';
 
 export default function Register() {
   const { register } = useAuth();
@@ -53,7 +54,7 @@ export default function Register() {
     e.preventDefault();
     setError('');
     if (form.password !== form.confirm) {
-      setError('Passwords do not match');
+      setError(t('auth.confirmNewPassword') + ' ✗');
       return;
     }
     setBusy(true);
@@ -71,7 +72,7 @@ export default function Register() {
       });
       navigate('/citizen/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      setError(err instanceof Error ? err.message : t('auth.registrationSuccess'));
     } finally {
       setBusy(false);
     }
@@ -94,17 +95,17 @@ export default function Register() {
               </div>
 
               <div className="mt-8">
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-blue-100">Citizen registration</p>
-                <h2 className="mt-3 text-3xl font-black leading-tight">Create your secure public access account.</h2>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-blue-100">{t('auth.createAccount')}</p>
+                <h2 className="mt-3 text-3xl font-black leading-tight">{t('auth.secureAccessTitle')}</h2>
                 <p className="mt-4 text-sm leading-6 text-blue-50">
-                  Register to access the citizen portal, submit service needs and stay informed about community improvements in your area.
+                  {t('auth.registerSubtitle')}
                 </p>
               </div>
 
               <div className="mt-8 space-y-3 text-sm text-blue-50">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-3"><i className="fa-solid fa-check" aria-hidden="true" /> Secure account setup</div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-3"><i className="fa-solid fa-check" aria-hidden="true" /> Role-based public service access</div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-3"><i className="fa-solid fa-check" aria-hidden="true" /> Verified district visibility</div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3"><i className="fa-solid fa-check" aria-hidden="true" /> {t('auth.verifiedIdentity')}</div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3"><i className="fa-solid fa-check" aria-hidden="true" /> {t('auth.roleBasedAccess')}</div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3"><i className="fa-solid fa-check" aria-hidden="true" /> {t('auth.verifiedIdentityText')}</div>
               </div>
             </aside>
 
@@ -115,10 +116,10 @@ export default function Register() {
                     <RwandaFlagLogo className="border-2 border-rwanda-blue bg-rwanda-blue/5" size={40} />
                     <span className="text-sm font-black uppercase tracking-[0.12em] text-rwanda-green">Rwanda Community Problem Intelligence</span>
                   </Link>
-                  <p className="mt-3 text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Create account</p>
+                  <p className="mt-3 text-sm font-medium uppercase tracking-[0.2em] text-slate-500">{t('auth.createAccount')}</p>
                 </div>
                 <Link to="/login" className="inline-flex items-center text-sm font-semibold text-rwanda-blue hover:underline">
-                  ← Back to login
+                  {t('auth.backToSignIn')}
                 </Link>
               </div>
 
@@ -129,47 +130,47 @@ export default function Register() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="label" htmlFor="firstName">First name *</label>
+                    <label className="label" htmlFor="firstName">{t('auth.firstName')} *</label>
                     <input id="firstName" className="input" value={form.firstName} onChange={(e) => set('firstName', e.target.value)} required />
                   </div>
                   <div>
-                    <label className="label" htmlFor="lastName">Last name *</label>
+                    <label className="label" htmlFor="lastName">{t('auth.lastName')} *</label>
                     <input id="lastName" className="input" value={form.lastName} onChange={(e) => set('lastName', e.target.value)} required />
                   </div>
                 </div>
 
                 <div>
-                  <label className="label" htmlFor="reg-email">Email *</label>
+                  <label className="label" htmlFor="reg-email">{t('auth.email')} *</label>
                   <input id="reg-email" type="email" className="input" value={form.email} onChange={(e) => set('email', e.target.value)} required />
                 </div>
 
                 <div>
-                  <label className="label" htmlFor="phone">Phone (+250…)</label>
+                  <label className="label" htmlFor="phone">{t('auth.phone')} (+250…)</label>
                   <input id="phone" className="input" placeholder="+250788000000" value={form.phone} onChange={(e) => set('phone', e.target.value)} />
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="label" htmlFor="reg-password">Password *</label>
+                    <label className="label" htmlFor="reg-password">{t('auth.password')} *</label>
                     <input id="reg-password" type="password" className="input" value={form.password} onChange={(e) => set('password', e.target.value)} required minLength={8} />
                   </div>
                   <div>
-                    <label className="label" htmlFor="confirm">Confirm password *</label>
+                    <label className="label" htmlFor="confirm">{t('auth.confirmNewPassword')} *</label>
                     <input id="confirm" type="password" className="input" value={form.confirm} onChange={(e) => set('confirm', e.target.value)} required />
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-rwanda-yellow/40 bg-rwanda-yellow/10 p-3 text-sm text-slate-700">
-                  <p className="font-semibold">Password requirements</p>
+                  <p className="font-semibold">{t('auth.passwordRequirements')}</p>
                   <ul className="mt-1 list-inside list-disc space-y-1">
-                    <li>Minimum 8 characters</li>
-                    <li>Uppercase and lowercase letters</li>
-                    <li>Number and special character</li>
+                    <li>{t('auth.reqMinLength')}</li>
+                    <li>{t('auth.reqCase')}</li>
+                    <li>{t('auth.reqNumber')}</li>
                   </ul>
                 </div>
 
                 <div>
-                  <label className="label" htmlFor="lang">Preferred language</label>
+                  <label className="label" htmlFor="lang">{t('auth.preferredLanguage')}</label>
                   <select id="lang" className="input" value={form.preferredLanguage} onChange={(e) => set('preferredLanguage', e.target.value)}>
                     <option value="rw">Kinyarwanda</option>
                     <option value="en">English</option>
@@ -179,27 +180,27 @@ export default function Register() {
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div>
-                    <label className="label" htmlFor="province">Province</label>
+                    <label className="label" htmlFor="province">{t('auth.province')}</label>
                     <select id="province" className="input" value={provinceId} onChange={(e) => setProvinceId(e.target.value)}>
-                      <option value="">Select…</option>
+                      <option value="">{t('auth.selectProvince')}</option>
                       {provinces.map((p) => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label className="label" htmlFor="district">District</label>
+                    <label className="label" htmlFor="district">{t('auth.district')}</label>
                     <select id="district" className="input" value={districtId} disabled={!provinceId} onChange={(e) => setDistrictId(e.target.value)}>
-                      <option value="">Select…</option>
+                      <option value="">{t('auth.selectDistrict')}</option>
                       {districts.map((d) => (
                         <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label className="label" htmlFor="sector">Sector</label>
+                    <label className="label" htmlFor="sector">{t('auth.sector')}</label>
                     <select id="sector" className="input" value={sectorId} disabled={!districtId} onChange={(e) => setSectorId(e.target.value)}>
-                      <option value="">Select…</option>
+                      <option value="">{t('auth.selectSector')}</option>
                       {sectors.map((s) => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}
@@ -208,12 +209,12 @@ export default function Register() {
                 </div>
 
                 <button type="submit" className="btn-primary w-full" disabled={busy}>
-                  {busy ? 'Creating account…' : 'Create citizen account'}
+                  {busy ? t('auth.creatingAccount') : t('auth.createMyAccount')}
                 </button>
               </form>
 
               <p className="mt-6 text-center text-sm text-slate-500">
-                Already have an account?{' '}
+                {t('auth.haveAccount')}{' '}
                 <Link to="/login" className="font-semibold text-rwanda-blue hover:underline">
                   Log in
                 </Link>

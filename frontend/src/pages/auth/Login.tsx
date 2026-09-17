@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RwandaFlagLogo from '../../components/RwandaFlagLogo';
+import { t, getLanguage, setLanguage, LANGUAGES, type Language } from '../../translations';
 
 export default function Login() {
   const { login } = useAuth();
@@ -15,10 +16,11 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [language, setSelectedLanguage] = useState<Language>(getLanguage());
 
   useEffect(() => {
     if ((location.state as { reason?: string } | null)?.reason === 'session-expired') {
-      setError('Your session expired. Please sign in again to continue.');
+      setError(t('error.sessionExpired'));
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [location.state]);
@@ -46,7 +48,7 @@ export default function Login() {
       const targetPath = roleDashboards[loggedInUser.role] ?? '/citizen/dashboard';
       navigate(from.startsWith('/login') || from.startsWith('/auth/') ? targetPath : from, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : t('error.invalidCredentials'));
     } finally {
       setBusy(false);
     }
@@ -68,16 +70,16 @@ export default function Login() {
             </div>
 
             <div className="mt-8 space-y-3">
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-blue-100">Secure access portal</p>
-              <h2 className="text-3xl font-black leading-tight">Public service access for citizens, officers and administrators.</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-blue-100">{t('auth.secureAccess')}</p>
+              <h2 className="text-3xl font-black leading-tight">{t('auth.secureAccessTitle')}</h2>
             </div>
           </div>
 
           <div className="space-y-4 p-8">
             {[
-              ['Verified identity', 'Secure logins for authenticated public service access.'],
-              ['Role-based access', 'Clear access boundaries for citizen and government workflows.'],
-              ['Audit accountability', 'All security events are monitored and recorded.'],
+              [t('auth.verifiedIdentity'), t('auth.verifiedIdentityText')],
+              [t('auth.roleBasedAccess'), t('auth.roleBasedAccessText')],
+              [t('auth.auditAccountability'), t('auth.auditAccountabilityText')],
             ].map(([title, text]) => (
               <div key={title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="font-semibold text-slate-900">{title}</p>
@@ -93,11 +95,28 @@ export default function Login() {
               <RwandaFlagLogo className="border-2 border-rwanda-blue bg-rwanda-blue/5" size={40} />
               <span className="text-sm font-black uppercase tracking-[0.12em] text-rwanda-green">Rwanda Community Problem Intelligence</span>
             </Link>
-            <p className="mt-3 text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Government login</p>
+            <p className="mt-3 text-sm font-medium uppercase tracking-[0.2em] text-slate-500">{t('nav.govPortal')}</p>
           </div>
 
-          <h2 className="text-3xl font-black text-slate-900">Welcome back</h2>
-          <p className="mt-2 text-sm text-slate-600">Access the Rwanda Community Problem Intelligence portal.</p>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-3xl font-black text-slate-900">{t('auth.loginTitle')}</h2>
+            <select
+              aria-label={t('common.language')}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600"
+              value={language}
+              onChange={(event) => {
+                const next = event.target.value as Language;
+                setSelectedLanguage(next);
+                setLanguage(next);
+                window.location.reload();
+              }}
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.value} value={l.value}>{l.label}</option>
+              ))}
+            </select>
+          </div>
+          <p className="-mt-2 text-sm text-slate-600">{t('auth.loginSubtitle')}</p>
 
           {error && (
             <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><i className="fa-solid fa-triangle-exclamation" aria-hidden="true" /> {error}</div>
@@ -105,12 +124,12 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div>
-              <label className="label" htmlFor="email">Email or phone</label>
+              <label className="label" htmlFor="email">{t('auth.emailOrPhone')}</label>
               <input
                 id="email"
                 type="text"
                 className="input"
-                placeholder="name@example.rw or +250788000000"
+                placeholder={t('auth.emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -119,13 +138,13 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="label" htmlFor="password">Password</label>
+              <label className="label" htmlFor="password">{t('auth.password')}</label>
               <div className="relative">
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   className="input pr-11"
-                  placeholder="Enter your password"
+                  placeholder={t('auth.passwordPlaceholder')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -136,7 +155,7 @@ export default function Login() {
                   className="absolute inset-y-0 right-3 flex items-center text-xs font-semibold uppercase tracking-[0.14em] text-slate-500"
                   onClick={() => setShowPassword((v) => !v)}
                 >
-                  {showPassword ? 'Hide' : 'Show'}
+                  {showPassword ? t('common.close') : t('common.view')}
                 </button>
               </div>
             </div>
@@ -144,34 +163,33 @@ export default function Login() {
             <div className="flex items-center justify-between gap-3 text-sm">
               <label className="flex items-center gap-2 text-slate-600">
                 <input type="checkbox" className="rounded border-slate-300 text-rwanda-blue focus:ring-rwanda-blue" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
-                Remember me
+                {t('auth.rememberMe')}
               </label>
               <Link to="/forgot-password" className="font-semibold text-rwanda-blue hover:underline">
-                Forgot password?
+                {t('auth.forgotPassword')}
               </Link>
             </div>
 
             <button type="submit" className="btn-primary w-full" disabled={busy}>
-              {busy ? 'Signing in…' : 'Secure sign in'}
+              {busy ? t('auth.signingIn') : t('auth.signIn')}
             </button>
           </form>
 
           <div className="mt-6 rounded-2xl border border-rwanda-yellow/40 bg-rwanda-yellow/10 p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-600">Password requirements</p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-600">{t('auth.passwordRequirements')}</p>
             <ul className="mt-2 space-y-1 text-sm text-slate-700">
-              <li><i className="fa-solid fa-check" aria-hidden="true" /> Minimum 8 characters</li>
-              <li><i className="fa-solid fa-check" aria-hidden="true" /> Uppercase and lowercase letters</li>
-              <li><i className="fa-solid fa-check" aria-hidden="true" /> Number and special character</li>
+              <li><i className="fa-solid fa-check" aria-hidden="true" /> {t('auth.reqMinLength')}</li>
+              <li><i className="fa-solid fa-check" aria-hidden="true" /> {t('auth.reqCase')}</li>
+              <li><i className="fa-solid fa-check" aria-hidden="true" /> {t('auth.reqNumber')}</li>
             </ul>
           </div>
 
           <p className="mt-6 text-center text-sm text-slate-500">
-            New to the platform?{' '}
+            {t('auth.newHere')}{' '}
             <Link to="/register" className="font-semibold text-rwanda-blue hover:underline">
-              Create an account
+              {t('auth.createAccount')}
             </Link>
           </p>
-
         </div>
       </div>
     </div>

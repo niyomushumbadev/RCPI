@@ -5,6 +5,7 @@ import type { Department, WorkflowReportDetail } from '../../types';
 import { StatusBadge, UrgencyBadge, formatDateTime, timeAgo } from '../../lib/format';
 import { Spinner, ErrorBox } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
+import { t } from '../../translations';
 
 const STAFF_ROLES = ['CELL_OFFICER', 'SECTOR_OFFICER', 'OFFICER', 'DISTRICT_ADMIN', 'PROVINCE_ADMIN', 'CITY_ADMIN', 'NATIONAL_ADMIN', 'SYSTEM_ADMIN'];
 
@@ -67,7 +68,7 @@ export default function WorkflowReportDetail() {
       setNote('');
       setError('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load report');
+      setError(e instanceof Error ? e.message : t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -95,7 +96,7 @@ export default function WorkflowReportDetail() {
       setAssignDeadline('');
       await load();
     } catch (err) {
-      setAssignMsg({ ok: false, text: err instanceof Error ? err.message : 'Could not assign the report' });
+      setAssignMsg({ ok: false, text: err instanceof Error ? err.message : t('common.error') });
     } finally {
       setAssignBusy(false);
     }
@@ -113,7 +114,7 @@ export default function WorkflowReportDetail() {
       setResolutionText('');
       await load();
     } catch (err) {
-      setActionMsg(`✖ ${err instanceof Error ? err.message : 'Action failed'}`);
+      setActionMsg(`✖ ${err instanceof Error ? err.message : t('common.error')}`);
     } finally {
       setLifecycleBusy(false);
     }
@@ -128,7 +129,7 @@ export default function WorkflowReportDetail() {
       await workflowApi.transition(id, targetStatus, note || undefined, departmentId ? Number(departmentId) : undefined);
       await load();
     } catch (err) {
-      setTransitionError(err instanceof Error ? err.message : 'Transition failed');
+      setTransitionError(err instanceof Error ? err.message : t('common.error'));
     } finally {
       setTransitionBusy(false);
     }
@@ -145,7 +146,7 @@ export default function WorkflowReportDetail() {
       await load();
       setActionMsg('✔ Update posted — the citizen has been notified.');
     } catch (err) {
-      setActionMsg(err instanceof Error ? `✖ ${err.message}` : '✖ Could not post update');
+      setActionMsg(err instanceof Error ? `✖ ${err.message}` : `✖ ${t('common.error')}`);
     } finally {
       setActionBusy(false);
     }
@@ -162,7 +163,7 @@ export default function WorkflowReportDetail() {
       await load();
       setActionMsg('✔ Message sent to the citizen.');
     } catch (err) {
-      setActionMsg(err instanceof Error ? `✖ ${err.message}` : '✖ Could not send message');
+      setActionMsg(err instanceof Error ? `✖ ${err.message}` : `✖ ${t('common.error')}`);
     } finally {
       setActionBusy(false);
     }
@@ -179,7 +180,7 @@ export default function WorkflowReportDetail() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <Link to="/workflow/reports" className="mb-3 inline-block text-sm text-rwanda-blue hover:underline">← Back to queue</Link>
+      <Link to="/workflow/reports" className="mb-3 inline-block text-sm text-rwanda-blue hover:underline">← {t('nav.reportsQueue')}</Link>
 
       {/* Header */}
       <div className="card mb-6 p-6">
@@ -191,12 +192,12 @@ export default function WorkflowReportDetail() {
               <StatusBadge status={report.status} />
               <UrgencyBadge urgency={report.urgency} />
               <span className="badge bg-slate-100 text-slate-600">{report.categoryName}</span>
-              {report.isAnonymous && <span className="badge bg-slate-100 text-slate-500"><i className="fa-solid fa-user-secret" aria-hidden="true" /> Anonymous</span>}
+              {report.isAnonymous && <span className="badge bg-slate-100 text-slate-500"><i className="fa-solid fa-user-secret" aria-hidden="true" /> {t('workflow.anonymousCitizen')}</span>}
             </div>
           </div>
           <div className="text-right text-sm text-slate-500">
-            <p>Submitted {formatDateTime(report.createdAt)}</p>
-            <p>Updated {timeAgo(report.updatedAt)}</p>
+            <p>{t('common.date')} {formatDateTime(report.createdAt)}</p>
+            <p>{t('workflow.reportUpdated') || t('status.UNDER_REVIEW')} {timeAgo(report.updatedAt)}</p>
           </div>
         </div>
 
@@ -204,7 +205,7 @@ export default function WorkflowReportDetail() {
 
         <dl className="mt-4 grid gap-x-8 gap-y-2 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2">
           <div className="flex gap-2">
-            <dt className="text-slate-400">Citizen:</dt>
+            <dt className="text-slate-400">{t('role.CITIZEN')}:</dt>
             <dd className="text-slate-700">
               {report.citizen ? (
                 <>
@@ -212,19 +213,19 @@ export default function WorkflowReportDetail() {
                   {report.citizen.phone ? ` · ${report.citizen.phone}` : ''}
                 </>
               ) : (
-                'Anonymous — identity hidden'
+                t('workflow.anonymousCitizen')
               )}
             </dd>
           </div>
           <div className="flex gap-2">
-            <dt className="text-slate-400">Location:</dt>
+            <dt className="text-slate-400">{t('workflow.location')}:</dt>
             <dd className="text-slate-700">
               {[report.location.sector, report.location.district, report.location.province].filter(Boolean).join(' / ')}
               {report.location.description ? ` — ${report.location.description}` : ''}
             </dd>
           </div>
           <div className="flex gap-2">
-            <dt className="text-slate-400">Coordinates:</dt>
+            <dt className="text-slate-400">{t('citizen.gpsLabel')}:</dt>
             <dd className="text-slate-700">
               {report.location.latitude && report.location.longitude
                 ? `${Number(report.location.latitude).toFixed(5)}, ${Number(report.location.longitude).toFixed(5)}`
@@ -233,23 +234,23 @@ export default function WorkflowReportDetail() {
           </div>
           {report.location.latitude != null && report.location.longitude != null && (
             <div className="flex gap-2">
-              <dt className="text-slate-400">Map:</dt>
-              <dd><Link to={`/map?reportId=${report.id}`} className="text-sm font-semibold text-rwanda-blue hover:underline">View location on community map →</Link></dd>
+              <dt className="text-slate-400">{t('community.map')}:</dt>
+              <dd><Link to={`/map?reportId=${report.id}`} className="text-sm font-semibold text-rwanda-blue hover:underline">{t('nav.communityMap')} →</Link></dd>
             </div>
           )}
           <div className="flex gap-2">
-            <dt className="text-slate-400">Department:</dt>
-            <dd className="text-slate-700">{report.department ?? 'Not assigned'}</dd>
+            <dt className="text-slate-400">{t('admin.departments')}:</dt>
+            <dd className="text-slate-700">{report.department ?? t('common.none')}</dd>
           </div>
           <div className="flex gap-2">
-            <dt className="text-slate-400">Assigned to:</dt>
+            <dt className="text-slate-400">{t('workflow.assignedToMe')}:</dt>
             <dd className="text-slate-700">
               {report.assignedOfficer ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-rwanda-blue/10 px-2 py-0.5 text-xs font-semibold text-rwanda-blue">
                   <i className="fa-solid fa-user-shield" aria-hidden="true" /> {report.assignedOfficer.name}
                 </span>
               ) : (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">Unassigned</span>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{t('common.none')}</span>
               )}
             </dd>
           </div>
@@ -258,7 +259,7 @@ export default function WorkflowReportDetail() {
         {/* AI suggestion (if present) */}
         {report.aiSuggestion.category && (
           <div className="mt-4 rounded-lg border border-purple-200 bg-purple-50 p-3 text-sm text-purple-800">
-            <i className="fa-solid fa-robot" aria-hidden="true" /> <strong>AI suggestion:</strong> {report.aiSuggestion.category} ({report.aiSuggestion.confidence ? `${Number(report.aiSuggestion.confidence).toFixed(0)}% confidence` : 'confidence n/a'})
+            <i className="fa-solid fa-robot" aria-hidden="true" /> <strong>{t('workflow.aiSuggestion')}:</strong> {report.aiSuggestion.category} ({report.aiSuggestion.confidence ? `${Number(report.aiSuggestion.confidence).toFixed(0)}% ${t('workflow.aiConfidence')}` : '—'})
             {report.aiSuggestion.summary ? ` — ${report.aiSuggestion.summary}` : ''}
           </div>
         )}
@@ -267,7 +268,7 @@ export default function WorkflowReportDetail() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Action panel */}
         <section className="card p-6">
-          <h2 className="mb-4 font-bold text-slate-900">Actions</h2>
+          <h2 className="mb-4 font-bold text-slate-900">{t('common.actions')}</h2>
 
           {actionMsg && (
             <div className={`mb-4 flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${actionMsg.startsWith('✔') ? 'bg-emerald-50 text-emerald-800' : actionMsg.startsWith('✖') ? 'bg-red-50 text-red-700' : 'bg-slate-50 text-slate-600'}`}>
@@ -280,59 +281,59 @@ export default function WorkflowReportDetail() {
           {/* Assign / reassign to a specific officer or admin */}
           {canAct && isStaff && (
             <form onSubmit={handleAssign} className="rounded-lg border border-rwanda-blue/30 bg-rwanda-blue/5 p-4">
-              <h3 className="text-sm font-bold text-slate-800"><i className="fa-solid fa-user-shield" aria-hidden="true" /> {report.assignedOfficer ? `Reassign (currently: ${report.assignedOfficer.name})` : 'Assign to officer / admin'}</h3>
+              <h3 className="text-sm font-bold text-slate-800"><i className="fa-solid fa-user-shield" aria-hidden="true" /> {report.assignedOfficer ? `${t('workflow.reassignTitle')}${report.assignedOfficer.name})` : t('workflow.assignTitle')}</h3>
               {assignMsg && (
                 <div className={`mt-2 rounded-lg px-3 py-2 text-sm ${assignMsg.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}>{assignMsg.text}</div>
               )}
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <select className="input" value={assignOfficerId} onChange={(e) => setAssignOfficerId(e.target.value)} required>
-                  <option value="">Select officer / admin…</option>
+                  <option value="">{t('workflow.assignSelect')}</option>
                   {staffList.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name} — {s.role.replace(/_/g, ' ').toLowerCase()}{s.district ? ` (${s.district})` : ''}
                     </option>
                   ))}
                 </select>
-                <input className="input" placeholder="Assignment instructions (optional)" maxLength={300} value={assignNote} onChange={(e) => setAssignNote(e.target.value)} />
+                <input className="input" placeholder={t('workflow.assignInstructions')} maxLength={300} value={assignNote} onChange={(e) => setAssignNote(e.target.value)} />
                 <select className="input" value={assignPriority} onChange={(e) => setAssignPriority(e.target.value)}>
-                  <option value="">Priority (optional)…</option>
-                  <option value="LOW">Low</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HIGH">High</option>
-                  <option value="CRITICAL">Critical</option>
+                  <option value="">{t('workflow.assignPriority')}</option>
+                  <option value="LOW">{t('priority.LOW')}</option>
+                  <option value="MEDIUM">{t('priority.MEDIUM')}</option>
+                  <option value="HIGH">{t('priority.HIGH')}</option>
+                  <option value="CRITICAL">{t('priority.CRITICAL')}</option>
                 </select>
-                <input className="input" type="date" aria-label="Assignment deadline" value={assignDeadline} onChange={(e) => setAssignDeadline(e.target.value)} />
+                <input className="input" type="date" aria-label={t('workflow.assignDeadline')} value={assignDeadline} onChange={(e) => setAssignDeadline(e.target.value)} />
               </div>
-              {staffList.length === 0 && <p className="mt-2 text-xs text-amber-700">No other staff members available to assign.</p>}
+              {staffList.length === 0 && <p className="mt-2 text-xs text-amber-700">{t('workflow.noStaffAvailable')}</p>}
               <button type="submit" className="btn-primary mt-3" disabled={!assignOfficerId || assignBusy}>
-                {assignBusy ? 'Saving…' : report.assignedOfficer ? 'Confirm reassignment' : 'Confirm assignment'}
+                {assignBusy ? t('common.saving') : report.assignedOfficer ? t('workflow.confirmReassign') : t('workflow.confirmAssign')}
               </button>
-              <p className="mt-2 text-xs text-slate-400">The officer is notified immediately and the assignment is recorded in the report timeline and audit log.</p>
+              <p className="mt-2 text-xs text-slate-400">{t('workflow.assignHint')}</p>
             </form>
           )}
 
           {/* Administrator lifecycle actions — accept / start / resolve (spec §5) */}
           {canAct && isStaff && report.assignedOfficer && (
             <div className="rounded-lg border border-emerald-300 bg-emerald-50/60 p-4">
-              <h3 className="text-sm font-bold text-slate-800"><i className="fa-solid fa-diagram-project" aria-hidden="true" /> Assignment actions</h3>
-              <p className="mt-1 text-xs text-slate-500">Current status: <strong>{report.status.replace(/_/g, ' ')}</strong>. Follow the workflow: accept the assignment, start work, then submit the resolution for citizen confirmation.</p>
+              <h3 className="text-sm font-bold text-slate-800"><i className="fa-solid fa-diagram-project" aria-hidden="true" /> {t('workflow.assignmentActions')}</h3>
+              <p className="mt-1 text-xs text-slate-500">{t('workflow.assignmentActionsHint')}<strong>{t(`status.${report.status}`)}</strong>. {t('workflow.followWorkflow')}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {report.status === 'ASSIGNED' && (
                   <>
-                    <button type="button" className="btn-primary !py-1.5 text-xs" disabled={lifecycleBusy} onClick={() => runLifecycleAction(() => workflowApi.acceptAssignment(id!), '✔ Assignment accepted — the citizen has been notified.')}>Accept assignment</button>
-                    <button type="button" className="btn-outline !py-1.5 text-xs" disabled={lifecycleBusy} onClick={() => runLifecycleAction(() => workflowApi.startWork(id!), '✔ Work started — status moved to IN_PROGRESS.')}>Start work</button>
+                    <button type="button" className="btn-primary !py-1.5 text-xs" disabled={lifecycleBusy} onClick={() => runLifecycleAction(() => workflowApi.acceptAssignment(id!), `✔ ${t('workflow.acceptAssignment')}`)}>{t('workflow.acceptAssignment')}</button>
+                    <button type="button" className="btn-outline !py-1.5 text-xs" disabled={lifecycleBusy} onClick={() => runLifecycleAction(() => workflowApi.startWork(id!), `✔ ${t('workflow.startWork')}`)}>{t('workflow.startWork')}</button>
                   </>
                 )}
                 {['IN_PROGRESS', 'ASSIGNED', 'REOPENED', 'ESCALATED'].includes(report.status) && (
-                  <button type="button" className="btn-success !py-1.5 text-xs" disabled={lifecycleBusy} onClick={() => setShowResolveForm((v) => !v)}>{showResolveForm ? 'Cancel resolution' : 'Mark resolved…'}</button>
+                  <button type="button" className="btn-success !py-1.5 text-xs" disabled={lifecycleBusy} onClick={() => setShowResolveForm((v) => !v)}>{showResolveForm ? t('common.cancel') : t('workflow.markResolved')}</button>
                 )}
               </div>
               {showResolveForm && (
                 <form className="mt-3 space-y-2" onSubmit={(e) => { e.preventDefault(); if (resolutionText.trim()) void runLifecycleAction(() => workflowApi.resolveReport(id!, resolutionText.trim()), '✔ Report resolved — the citizen has been asked to confirm.'); }}>
-                  <label className="label">Resolution description (what was done, when, and how it fixes the problem)</label>
-                  <textarea className="input min-h-24" maxLength={4000} value={resolutionText} onChange={(e) => setResolutionText(e.target.value)} required placeholder="Example: Replaced the failed transformer and restored power on 12/09. Verified all streetlights are working." />
-                  <p className="text-xs text-slate-400">The citizen will be asked to confirm the problem is solved. Uploading before/after evidence below is encouraged.</p>
-                  <button type="submit" className="btn-success" disabled={lifecycleBusy || !resolutionText.trim()}>{lifecycleBusy ? 'Saving…' : 'Submit resolution for citizen confirmation'}</button>
+                  <label className="label">{t('workflow.resolutionLabel')}</label>
+                  <textarea className="input min-h-24" maxLength={4000} value={resolutionText} onChange={(e) => setResolutionText(e.target.value)} required placeholder={t('workflow.resolutionPlaceholder')} />
+                  <p className="text-xs text-slate-400">{t('workflow.resolutionHint')}</p>
+                  <button type="submit" className="btn-success" disabled={lifecycleBusy || !resolutionText.trim()}>{lifecycleBusy ? t('common.saving') : t('workflow.submitResolution')}</button>
                 </form>
               )}
             </div>
@@ -340,10 +341,10 @@ export default function WorkflowReportDetail() {
 
           {/* Status transition */}
           {canAct ? <form onSubmit={handleTransition} className="rounded-lg border border-slate-200 p-4">
-            <h3 className="text-sm font-bold text-slate-800">Move status forward</h3>
+            <h3 className="text-sm font-bold text-slate-800">{t('workflow.transitionTitle')}</h3>
             {transitionError && <div className="mt-2"><ErrorBox message={transitionError} /></div>}
             {report.allowedTransitions.length === 0 ? (
-              <p className="mt-2 text-sm text-slate-400">No transitions available from {report.status}.</p>
+              <p className="mt-2 text-sm text-slate-400">{t('workflow.noTransitions')}{t(`status.${report.status}`)}.</p>
             ) : (
               <>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -356,16 +357,16 @@ export default function WorkflowReportDetail() {
                       }`}
                       onClick={() => setTargetStatus(s)}
                     >
-                      {s.replace(/_/g, ' ').toLowerCase()}
+                      {t(`status.${s}`)}
                     </button>
                   ))}
                 </div>
 
                 {needsDepartment && (
                   <div className="mt-3">
-                    <label className="label" htmlFor="dept">Assign to department *</label>
+                    <label className="label" htmlFor="dept">{t('admin.departments')} *</label>
                     <select id="dept" className="input" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required>
-                      <option value="">Select department…</option>
+                      <option value="">{t('workflow.assignSelect')}</option>
                       {departments.map((d) => (
                         <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
@@ -374,54 +375,54 @@ export default function WorkflowReportDetail() {
                 )}
 
                 <div className="mt-3">
-                  <label className="label" htmlFor="tnote">Note to citizen</label>
+                  <label className="label" htmlFor="tnote">{t('workflow.addUpdate')}</label>
                   <textarea
                     id="tnote"
                     className="input min-h-20"
                     maxLength={500}
-                    placeholder="Optional — shown to the citizen as an official update"
+                    placeholder={t('workflow.updatePlaceholder')}
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                   />
                 </div>
 
                 <button type="submit" className="btn-primary mt-3" disabled={!targetStatus || transitionBusy}>
-                  {transitionBusy ? 'Applying…' : `Move to ${targetStatus.replace(/_/g, ' ').toLowerCase() || '…'}`}
+                  {transitionBusy ? t('common.saving') : `${t('workflow.transitionTitle')}: ${targetStatus ? t(`status.${targetStatus}`) : '…'}`}
                 </button>
               </>
             )}
-          </form> : <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">Read-only for your role. Only responsible officers can change status.</p>}
+          </form> : <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">{t('error.forbidden')}</p>}
 
           {/* Deadline / SLA */}
           {canAct && <form onSubmit={async (e) => { e.preventDefault(); if (!id || !deadline) return; setActionBusy(true); setActionMsg(''); try { await workflowApi.setDeadline(id, new Date(deadline).toISOString(), deadlineReason || undefined); setActionMsg('✔ Deadline saved.'); setDeadline(''); setDeadlineReason(''); } catch (err) { setActionMsg(err instanceof Error ? `✖ ${err.message}` : '✖ Could not save deadline'); } finally { setActionBusy(false); } }} className="mt-4 rounded-lg border border-slate-200 p-4">
-            <h3 className="text-sm font-bold text-slate-800">Set / extend deadline</h3>
+            <h3 className="text-sm font-bold text-slate-800">{t('workflow.setDeadline')}</h3>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <input type="datetime-local" className="input" value={deadline} onChange={(e) => setDeadline(e.target.value)} required />
-              <input className="input" placeholder="Reason (required for extensions)" value={deadlineReason} onChange={(e) => setDeadlineReason(e.target.value)} />
+              <input className="input" placeholder={t('workflow.deadlineReason')} value={deadlineReason} onChange={(e) => setDeadlineReason(e.target.value)} />
             </div>
-            <button type="submit" className="btn-outline mt-3" disabled={actionBusy || !deadline}>Save deadline</button>
+            <button type="submit" className="btn-outline mt-3" disabled={actionBusy || !deadline}>{t('common.save')}</button>
           </form>}
 
           {/* Internal note */}
           {canAct && <form onSubmit={async (e) => { e.preventDefault(); if (!id || !internalNote.trim()) return; setActionBusy(true); setActionMsg(''); try { await workflowApi.internalNote(id, internalNote.trim()); setInternalNote(''); setActionMsg('✔ Internal note saved (staff only).'); } catch (err) { setActionMsg(err instanceof Error ? `✖ ${err.message}` : '✖ Could not save note'); } finally { setActionBusy(false); } }} className="mt-4 rounded-lg border border-slate-200 p-4">
-            <h3 className="text-sm font-bold text-slate-800">Internal note (staff only)</h3>
-            <textarea className="input mt-3 min-h-20" maxLength={2000} placeholder="Field observation, investigation note…" value={internalNote} onChange={(e) => setInternalNote(e.target.value)} />
-            <button type="submit" className="btn-outline mt-3" disabled={actionBusy || !internalNote.trim()}>Save note</button>
+            <h3 className="text-sm font-bold text-slate-800">{t('workflow.internalNotes')}</h3>
+            <textarea className="input mt-3 min-h-20" maxLength={2000} placeholder={t('workflow.internalNotePlaceholder')} value={internalNote} onChange={(e) => setInternalNote(e.target.value)} />
+            <button type="submit" className="btn-outline mt-3" disabled={actionBusy || !internalNote.trim()}>{t('common.save')}</button>
           </form>}
 
           {/* Related / duplicate */}
           {canAct && <form onSubmit={async (e) => { e.preventDefault(); if (!id || !relatedId) return; setActionBusy(true); setActionMsg(''); try { await workflowApi.linkRelated(id, Number(relatedId), relatedType); setActionMsg(relatedType === 'DUPLICATE' ? '✔ Marked as possible duplicate (advisory — nothing auto-closed).' : '✔ Related report linked.'); setRelatedId(''); } catch (err) { setActionMsg(err instanceof Error ? `✖ ${err.message}` : '✖ Could not link reports'); } finally { setActionBusy(false); } }} className="mt-4 rounded-lg border border-slate-200 p-4">
-            <h3 className="text-sm font-bold text-slate-800">Link related / mark duplicate</h3>
+            <h3 className="text-sm font-bold text-slate-800">{t('workflow.assignmentHistory')}</h3>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <input className="input" placeholder="Related report ID" value={relatedId} onChange={(e) => setRelatedId(e.target.value)} />
-              <select className="input" value={relatedType} onChange={(e) => setRelatedType(e.target.value)}><option value="RELATED">Related</option><option value="DUPLICATE">Possible duplicate</option></select>
+              <input className="input" placeholder={t('workflow.reportDetail')} value={relatedId} onChange={(e) => setRelatedId(e.target.value)} />
+              <select className="input" value={relatedType} onChange={(e) => setRelatedType(e.target.value)}><option value="RELATED">{t('workflow.instructions')}</option><option value="DUPLICATE">{t('common.all')}</option></select>
             </div>
-            <button type="submit" className="btn-outline mt-3" disabled={actionBusy || !relatedId}>Link reports</button>
+            <button type="submit" className="btn-outline mt-3" disabled={actionBusy || !relatedId}>{t('common.save')}</button>
           </form>}
 
           {/* Priority */}
           <div className="mt-4 rounded-lg border border-purple-200 bg-purple-50/50 p-4">
-            <h3 className="text-sm font-bold text-slate-800">Priority & risk (transparent)</h3>
+            <h3 className="text-sm font-bold text-slate-800">{t('workflow.priority')}</h3>
             {priority ? (
               <div className="mt-2 text-sm text-slate-600">
                 <p><strong className="text-slate-900">{priority.score}/100 · {priority.level}</strong>{priority.officerOverride ? ` (officer override: ${priority.officerOverride} — ${priority.overrideReason ?? 'no reason recorded'})` : ` (computed: ${priority.computedLevel})`}</p>
@@ -429,9 +430,9 @@ export default function WorkflowReportDetail() {
               </div>
             ) : <p className="mt-2 text-sm text-slate-400">Loading priority…</p>}
             {canAct && <form onSubmit={async (e) => { e.preventDefault(); if (!id || !newPriority || !priorityReason.trim()) return; setAiBusy(true); setAiMsg(''); try { await aiApi.setPriority(Number(id), newPriority, priorityReason.trim()); const r = await aiApi.priority(Number(id)); setPriority(r.priority); setNewPriority(''); setPriorityReason(''); setAiMsg('✔ Priority updated with audit record.'); } catch (err) { setAiMsg(err instanceof Error ? `✖ ${err.message}` : '✖ Could not update priority'); } finally { setAiBusy(false); } }} className="mt-3 grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
-              <select className="input" value={newPriority} onChange={(e) => setNewPriority(e.target.value)}><option value="">New priority…</option><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select>
-              <input className="input" placeholder="Mandatory reason for override" value={priorityReason} onChange={(e) => setPriorityReason(e.target.value)} />
-              <button className="btn-outline" disabled={aiBusy || !newPriority || !priorityReason.trim()}>Adjust</button>
+              <select className="input" value={newPriority} onChange={(e) => setNewPriority(e.target.value)}><option value="">{t('workflow.assignPriority')}</option><option value="LOW">{t('priority.LOW')}</option><option value="MEDIUM">{t('priority.MEDIUM')}</option><option value="HIGH">{t('priority.HIGH')}</option><option value="CRITICAL">{t('priority.CRITICAL')}</option></select>
+              <input className="input" placeholder={t('workflow.deadlineReason')} value={priorityReason} onChange={(e) => setPriorityReason(e.target.value)} />
+              <button className="btn-outline" disabled={aiBusy || !newPriority || !priorityReason.trim()}>{t('common.edit')}</button>
             </form>}
             {aiMsg && (
               <p className="mt-2 flex items-center gap-2 text-sm text-slate-600">
@@ -440,21 +441,21 @@ export default function WorkflowReportDetail() {
                 <span>{aiMsg.replace(/^[✔✖]\s*/, '')}</span>
               </p>
             )}
-            {canViewAI && <Link to={`/ai/reports/${id}`} className="mt-2 inline-block text-sm font-semibold text-brand-primary hover:underline">Open full AI analysis</Link>}
+            {canViewAI && <Link to={`/ai/reports/${id}`} className="mt-2 inline-block text-sm font-semibold text-brand-primary hover:underline">{t('workflow.aiSummary')} →</Link>}
           </div>
 
           {/* Public update */}
           {canAct && <form onSubmit={postUpdate} className="mt-4 rounded-lg border border-slate-200 p-4">
-            <h3 className="text-sm font-bold text-slate-800">Post public update</h3>
+            <h3 className="text-sm font-bold text-slate-800">{t('workflow.addUpdate')}</h3>
             <textarea
               className="input mt-3 min-h-20"
               maxLength={1000}
-              placeholder="Progress update visible to the citizen…"
+              placeholder={t('workflow.updatePlaceholder')}
               value={updateMsg}
               onChange={(e) => setUpdateMsg(e.target.value)}
             />
             <button type="submit" className="btn-outline mt-3" disabled={actionBusy || !updateMsg.trim()}>
-              Post update
+              {t('workflow.postUpdate')}
             </button>
           </form>}
         </section>
@@ -462,13 +463,13 @@ export default function WorkflowReportDetail() {
         {/* Timeline + chat */}
         <section className="space-y-6">
           <div className="card p-6">
-            <h2 className="mb-4 font-bold text-slate-900">Status history</h2>
+            <h2 className="mb-4 font-bold text-slate-900">{t('citizen.timeline')}</h2>
             <ol className="relative space-y-4 border-l-2 border-slate-100 pl-5">
               {report.timeline.map((t) => (
                 <li key={t.id} className="relative">
                   <span className="absolute -left-[27px] top-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-slate-400" />
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-slate-700">{t.fromStatus ? `${t.fromStatus.replace(/_/g, ' ')} → ` : ''}{t.toStatus.replace(/_/g, ' ')}</span>
+                    <span className="text-sm font-semibold text-slate-700">{t.fromStatus ? `${t(`status.${t.fromStatus}`)} → ` : ''}{t(`status.${t.toStatus}`)}</span>
                     <span className="text-xs text-slate-400">{formatDateTime(t.createdAt)}</span>
                   </div>
                   {t.note && <p className="mt-0.5 text-sm text-slate-500">{t.note}</p>}
@@ -479,31 +480,31 @@ export default function WorkflowReportDetail() {
 
             {report.feedback && (
               <div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm">
-                <strong className="text-amber-700">Citizen feedback:</strong>{' '}<span className="text-amber-500">{Array.from({ length: report.feedback.rating }, (_, i) => <i key={`sf${i}`} className="fa-solid fa-star" aria-hidden="true" />)}{Array.from({ length: 5 - report.feedback.rating }, (_, i) => <i key={`se${i}`} className="fa-regular fa-star" aria-hidden="true" />)}</span>
+                <strong className="text-amber-700">{t('citizen.feedbackLabel')}:</strong>{' '}<span className="text-amber-500">{Array.from({ length: report.feedback.rating }, (_, i) => <i key={`sf${i}`} className="fa-solid fa-star" aria-hidden="true" />)}{Array.from({ length: 5 - report.feedback.rating }, (_, i) => <i key={`se${i}`} className="fa-regular fa-star" aria-hidden="true" />)}</span>
                 {report.feedback.comment ? ` — “${report.feedback.comment}”` : ''}
               </div>
             )}
           </div>
 
           <div className="card p-6">
-            <h2 className="mb-4 font-bold text-slate-900">Conversation with citizen</h2>
+            <h2 className="mb-4 font-bold text-slate-900">{t('citizen.messages')}</h2>
             <div className="max-h-64 space-y-3 overflow-y-auto">
               {report.messages.length === 0 ? (
-                <p className="text-sm text-slate-400">No messages yet.</p>
+                <p className="text-sm text-slate-400">{t('common.none')}</p>
               ) : (
                 report.messages.map((m) => (
                   <div key={m.id} className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${m.senderRole === 'GOVERNMENT' ? 'ml-auto bg-rwanda-green text-white' : 'bg-slate-100 text-slate-700'}`}>
                     <p className="whitespace-pre-wrap">{m.message}</p>
                     <p className={`mt-1 text-[10px] ${m.senderRole === 'GOVERNMENT' ? 'text-green-100' : 'text-slate-400'}`}>
-                      {m.senderRole === 'GOVERNMENT' ? (user ? `${user.firstName}` : 'Government') : 'Citizen'} · {timeAgo(m.createdAt)}
+                      {m.senderRole === 'GOVERNMENT' ? (user ? `${user.firstName}` : t('notif.govMessage')) : t('role.CITIZEN')} · {timeAgo(m.createdAt)}
                     </p>
                   </div>
                 ))
               )}
             </div>
             {canAct && <form onSubmit={sendReply} className="mt-4 flex gap-2 border-t border-slate-100 pt-4">
-              <input className="input" placeholder="Reply to citizen…" maxLength={2000} value={chatMsg} onChange={(e) => setChatMsg(e.target.value)} />
-              <button className="btn-primary" disabled={actionBusy || !chatMsg.trim()}>Send</button>
+              <input className="input" placeholder={t('workflow.replyToCitizen')} maxLength={2000} value={chatMsg} onChange={(e) => setChatMsg(e.target.value)} />
+              <button className="btn-primary" disabled={actionBusy || !chatMsg.trim()}>{t('common.send')}</button>
             </form>}
           </div>
         </section>

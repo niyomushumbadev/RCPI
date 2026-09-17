@@ -6,6 +6,7 @@ import { StatusBadge, UrgencyBadge, timeAgo } from '../../lib/format';
 import { PageHeader, Spinner, DashboardError, StatCard, EmptyState } from '../../components/ui';
 import { CategoryIcon } from '../../components/icons';
 import { useAuth } from '../../context/AuthContext';
+import { t } from '../../translations';
 
 type ReopenRequest = {
   id: number;
@@ -72,7 +73,7 @@ export default function WorkflowDashboard() {
         setQueue(r.reports);
         setStaffList(st.staff);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load workflow data'))
+      .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -86,12 +87,12 @@ export default function WorkflowDashboard() {
     setActionMsg(null);
     try {
       const res = await workflowApi.reviewReopenRequest(reviewing.id, reviewing.decision, reviewNote.trim() || undefined);
-      setActionMsg({ ok: true, text: res.decision === 'APPROVED' ? 'Approved — the report is reopened and the citizen has been notified.' : 'Reopen request declined — the citizen has been notified.' });
+      setActionMsg({ ok: true, text: res.decision === 'APPROVED' ? t('status.REOPENED') : t('status.CLOSED') });
       setReviewing(null);
       setReviewNote('');
       load();
     } catch (e) {
-      setActionMsg({ ok: false, text: e instanceof Error ? e.message : 'Failed to record the review decision' });
+      setActionMsg({ ok: false, text: e instanceof Error ? e.message : t('common.error') });
     } finally {
       setBusyId(null);
     }
@@ -145,27 +146,27 @@ export default function WorkflowDashboard() {
   return (
     <div>
       <PageHeader
-        title="Government workflow"
-        subtitle={user ? `${user.firstName} ${user.lastName} · ${user.role.replace('_', ' ')}` : undefined}
+        title={t('workflow.dashboardTitle')}
+        subtitle={user ? `${user.firstName} ${user.lastName} · ${t(`role.${user.role}`)}` : undefined}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link to="/" className="btn-outline text-sm">Home</Link>
-            <Link to="/dashboard" className="btn-outline text-sm">Dashboard</Link>
-            <Link to="/workflow/reports" className="btn-primary">Open reports queue</Link>
-            <Link to="/government/intelligence" className="btn-outline">GIS &amp; intelligence</Link>
+            <Link to="/" className="btn-outline text-sm">{t('common.home')}</Link>
+            <Link to="/dashboard" className="btn-outline text-sm">{t('nav.dashboard')}</Link>
+            <Link to="/workflow/reports" className="btn-primary">{t('nav.reportsQueue')}</Link>
+            <Link to="/government/intelligence" className="btn-outline">{t('nav.gisIntelligence')}</Link>
           </div>
         }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon="fa-clipboard-list" label="Total reports" value={stats.total} tone="blue" />
-        <StatCard icon="fa-seedling" label="Needs first review" value={stats.submitted} tone="amber" />
-        <StatCard icon="fa-magnifying-glass" label="Under review" value={stats.underReview} tone="slate" />
-        <StatCard icon="fa-screwdriver-wrench" label="In progress" value={stats.inProgress} tone="blue" />
-        <StatCard icon="fa-boxes-stacked" label="Assigned" value={stats.assigned} tone="slate" />
-        <StatCard icon="fa-circle-check" label="Resolved" value={stats.resolved} tone="green" />
-        <StatCard icon="fa-triangle-exclamation" label="Escalated" value={stats.escalated} tone="red" />
-        <StatCard icon="fa-rotate" label="Reopen requests" value={reopenReqs.length} tone={reopenReqs.length > 0 ? 'amber' : 'slate'} />
+        <StatCard icon="fa-clipboard-list" label={t('workflow.statsTotal')} value={stats.total} tone="blue" />
+        <StatCard icon="fa-seedling" label={t('workflow.statsSubmitted')} value={stats.submitted} tone="amber" />
+        <StatCard icon="fa-magnifying-glass" label={t('citizen.underReview')} value={stats.underReview} tone="slate" />
+        <StatCard icon="fa-screwdriver-wrench" label={t('workflow.statsInProgress')} value={stats.inProgress} tone="blue" />
+        <StatCard icon="fa-boxes-stacked" label={t('workflow.statsAssigned')} value={stats.assigned} tone="slate" />
+        <StatCard icon="fa-circle-check" label={t('workflow.statsResolved')} value={stats.resolved} tone="green" />
+        <StatCard icon="fa-triangle-exclamation" label={t('workflow.statsEscalated')} value={stats.escalated} tone="red" />
+        <StatCard icon="fa-rotate" label={t('status.REOPEN_REQUESTED')} value={reopenReqs.length} tone={reopenReqs.length > 0 ? 'amber' : 'slate'} />
       </div>
 
       {actionMsg && (
@@ -180,9 +181,9 @@ export default function WorkflowDashboard() {
       {/* ── Review & solve workbench ──────────────────────────────────── */}
       <section className="card mt-6 p-5">
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-bold text-slate-900"><i className="fa-solid fa-clipboard-check" aria-hidden="true" /> Review &amp; solve reports</h2>
+          <h2 className="font-bold text-slate-900"><i className="fa-solid fa-clipboard-check" aria-hidden="true" /> {t('workflow.queueTitle')}</h2>
           <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
-            {([['todo', 'To review'], ['active', 'In progress'], ['closing', 'Closing']] as const).map(([tab, label]) => {
+            {([['todo', t('citizen.awaitingReview')], ['active', t('workflow.statsInProgress')], ['closing', t('workflow.archiveTitle')]] as const).map(([tab, label]) => {
               const count = tabReports(tab).length;
               return (
                 <button
@@ -204,8 +205,8 @@ export default function WorkflowDashboard() {
         {tabReports(workbenchTab).length === 0 ? (
           <EmptyState
             icon="fa-circle-check"
-            title={workbenchTab === 'todo' ? 'Nothing waiting for review' : workbenchTab === 'active' ? 'No active work right now' : 'Nothing to close'}
-            hint="Reports in this stage will appear here automatically."
+            title={workbenchTab === 'todo' ? t('citizen.awaitingReview') : workbenchTab === 'active' ? t('workflow.statsInProgress') : t('workflow.archiveTitle')}
+            hint={t('workflow.queueSubtitle')}
           />
         ) : (
           <ul className="divide-y divide-slate-100">
@@ -241,7 +242,7 @@ export default function WorkflowDashboard() {
                         disabled={busyReport === r.id}
                         onClick={() => { setAssigning(assigning?.id === r.id ? null : { id: r.id, officerId: r.assignedOfficer?.id ? String(r.assignedOfficer.id) : '', note: '' }); setActing(null); }}
                       >
-                        <i className="fa-solid fa-user-plus" aria-hidden="true" /> {r.assignedOfficer ? 'Reassign' : 'Assign'}
+                        <i className="fa-solid fa-user-plus" aria-hidden="true" /> {r.assignedOfficer ? t('workflow.confirmReassign') : t('workflow.assignTitle')}
                       </button>
                       {allowedForMe('RESOLVED') && ['IN_PROGRESS', 'ASSIGNED', 'REOPENED', 'WAITING_DEPARTMENT'].includes(r.status) && (
                         <button
@@ -250,7 +251,7 @@ export default function WorkflowDashboard() {
                           disabled={busyReport === r.id}
                           onClick={() => { setActing({ id: r.id, status: 'RESOLVED', note: '' }); setAssigning(null); }}
                         >
-                          <i className="fa-solid fa-circle-check" aria-hidden="true" /> Resolve
+                          <i className="fa-solid fa-circle-check" aria-hidden="true" /> {t('workflow.markResolved')}
                         </button>
                       )}
                       {allowedForMe('REJECTED') && TODO_STATUSES.concat('VERIFIED').includes(r.status) && (
@@ -260,7 +261,7 @@ export default function WorkflowDashboard() {
                           disabled={busyReport === r.id}
                           onClick={() => { setActing({ id: r.id, status: 'REJECTED', note: '' }); setAssigning(null); }}
                         >
-                          <i className="fa-solid fa-ban" aria-hidden="true" /> Reject
+                          <i className="fa-solid fa-ban" aria-hidden="true" /> {t('status.REJECTED')}
                         </button>
                       )}
                     </div>
@@ -270,14 +271,14 @@ export default function WorkflowDashboard() {
                 {/* Inline assign panel */}
                 {assigning?.id === r.id && (
                   <div className="mt-3 rounded-lg border border-rwanda-blue/30 bg-rwanda-blue/5 p-4">
-                    <h4 className="text-sm font-bold text-slate-800"><i className="fa-solid fa-user-shield" aria-hidden="true" /> Assign to officer / admin</h4>
+                    <h4 className="text-sm font-bold text-slate-800"><i className="fa-solid fa-user-shield" aria-hidden="true" /> {t('workflow.assignTitle')}</h4>
                     <div className="mt-2 grid gap-2 sm:grid-cols-2">
                       <select
                         className="input"
                         value={assigning.officerId}
                         onChange={(e) => setAssigning({ ...assigning, officerId: e.target.value })}
                       >
-                        <option value="">Select officer…</option>
+                        <option value="">{t('workflow.assignSelect')}</option>
                         {staffList.map((s) => (
                           <option key={s.id} value={s.id}>
                             {s.name} — {s.role.replace(/_/g, ' ').toLowerCase()}{s.district ? ` (${s.district})` : ''}
@@ -286,22 +287,22 @@ export default function WorkflowDashboard() {
                       </select>
                       <input
                         className="input"
-                        placeholder="Instruction for the officer (optional)"
+                        placeholder={t('workflow.assignInstructions')}
                         maxLength={300}
                         value={assigning.note}
                         onChange={(e) => setAssigning({ ...assigning, note: e.target.value })}
                       />
                     </div>
-                    {staffList.length === 0 && <p className="mt-2 text-xs text-amber-700">No other staff members are available — you can still solve this report yourself.</p>}
+                    {staffList.length === 0 && <p className="mt-2 text-xs text-amber-700">{t('workflow.noStaffAvailable')}</p>}
                     <div className="mt-3 flex justify-end gap-2">
-                      <button type="button" className="btn-outline text-xs" onClick={() => setAssigning(null)}>Cancel</button>
+                      <button type="button" className="btn-outline text-xs" onClick={() => setAssigning(null)}>{t('common.cancel')}</button>
                       <button
                         type="button"
                         className="btn-primary text-xs"
                         disabled={!assigning.officerId || busyReport === r.id}
                         onClick={submitAssign}
                       >
-                        {busyReport === r.id ? 'Saving…' : r.assignedOfficer ? 'Confirm reassignment' : 'Confirm assignment'}
+                        {busyReport === r.id ? t('common.saving') : r.assignedOfficer ? t('workflow.confirmReassign') : t('workflow.confirmAssign')}
                       </button>
                     </div>
                   </div>
@@ -311,7 +312,7 @@ export default function WorkflowDashboard() {
                 {acting?.id === r.id && (
                   <div className={`mt-3 rounded-lg border p-4 ${acting.status === 'RESOLVED' ? 'border-green-300 bg-green-50' : 'border-red-200 bg-red-50'}`}>
                     <h4 className="text-sm font-bold text-slate-800">
-                      {acting.status === 'RESOLVED' ? 'Resolve this report' : 'Reject this report'}
+                      {acting.status === 'RESOLVED' ? t('workflow.markResolved') : t('status.REJECTED')}
                     </h4>
                     <p className="mt-1 text-xs text-slate-500">
                       {acting.status === 'RESOLVED'
@@ -326,14 +327,14 @@ export default function WorkflowDashboard() {
                       onChange={(e) => setActing({ ...acting, note: e.target.value })}
                     />
                     <div className="mt-3 flex justify-end gap-2">
-                      <button type="button" className="btn-outline text-xs" onClick={() => setActing(null)}>Cancel</button>
+                      <button type="button" className="btn-outline text-xs" onClick={() => setActing(null)}>{t('common.cancel')}</button>
                       <button
                         type="button"
                         className={`text-xs ${acting.status === 'RESOLVED' ? 'btn-primary' : 'btn-primary !bg-red-600'}`}
                         disabled={busyReport === r.id || (acting.status === 'REJECTED' && !acting.note.trim())}
                         onClick={submitQuickAction}
                       >
-                        {busyReport === r.id ? 'Saving…' : acting.status === 'RESOLVED' ? 'Confirm resolved' : 'Confirm rejection'}
+                        {busyReport === r.id ? t('common.saving') : acting.status === 'RESOLVED' ? t('workflow.markResolved') : t('status.REJECTED')}
                       </button>
                     </div>
                   </div>
@@ -347,7 +348,7 @@ export default function WorkflowDashboard() {
       {/* Reopen requests review */}
       <section className="card mt-6 p-5">
         <div className="mb-1 flex items-center justify-between">
-          <h2 className="font-bold text-slate-900"><i className="fa-solid fa-rotate" aria-hidden="true" /> Reopen requests</h2>
+          <h2 className="font-bold text-slate-900"><i className="fa-solid fa-rotate" aria-hidden="true" /> {t('status.REOPEN_REQUESTED')}</h2>
           {reopenReqs.length > 0 && (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
               {reopenReqs.length} pending
@@ -358,7 +359,7 @@ export default function WorkflowDashboard() {
           Citizens asked to reopen closed reports. Approving reopens the report for further work; declining keeps it closed with an explanation.
         </p>
         {reopenReqs.length === 0 ? (
-          <EmptyState icon="fa-circle-check" title="No pending reopen requests" hint="Citizen reopen requests will appear here for review." />
+          <EmptyState icon="fa-circle-check" title={t('common.none')} hint={t('citizen.noNotifications')} />
         ) : (
           <ul className="divide-y divide-slate-100">
             {reopenReqs.map((req) => (
@@ -390,7 +391,7 @@ export default function WorkflowDashboard() {
                           disabled={busyId === req.id}
                           onClick={() => { setReviewing({ id: req.id, decision: 'APPROVE' }); setReviewNote(''); setActionMsg(null); }}
                         >
-                          Approve &amp; reopen
+                          {t('status.REOPENED')}
                         </button>
                       )}
                       <button
@@ -399,7 +400,7 @@ export default function WorkflowDashboard() {
                         disabled={busyId === req.id}
                         onClick={() => { setReviewing({ id: req.id, decision: 'DECLINE' }); setReviewNote(''); setActionMsg(null); }}
                       >
-                        Decline
+                        {t('common.cancel')}
                       </button>
                     </div>
                   )}
@@ -428,7 +429,7 @@ export default function WorkflowDashboard() {
                         disabled={busyId === req.id}
                         onClick={submitReview}
                       >
-                        {busyId === req.id ? 'Saving…' : `Confirm ${reviewing.decision === 'APPROVE' ? 'approval' : 'decline'}`}
+                        {busyId === req.id ? t('common.saving') : reviewing.decision === 'APPROVE' ? t('status.REOPENED') : t('status.CLOSED')}
                       </button>
                     </div>
                     {!canApprove && reviewing.decision === 'APPROVE' && (
@@ -444,11 +445,11 @@ export default function WorkflowDashboard() {
 
       <section className="card mt-6 p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-bold text-slate-900">Awaiting action</h2>
-          <Link to="/workflow/reports" className="text-sm text-rwanda-blue hover:underline">View full queue</Link>
+          <h2 className="font-bold text-slate-900">{t('workflow.assignmentActions')}</h2>
+          <Link to="/workflow/reports" className="text-sm text-rwanda-blue hover:underline">{t('common.viewAll')}</Link>
         </div>
         {pending.length === 0 ? (
-          <EmptyState icon="fa-champagne-glasses" title="Queue is clear" hint="No reports are waiting for a first review right now." />
+          <EmptyState icon="fa-champagne-glasses" title={t('common.none')} hint={t('workflow.queueSubtitle')} />
         ) : (
           <ul className="divide-y divide-slate-100">
             {pending.map((r) => (

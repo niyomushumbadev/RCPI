@@ -3,6 +3,7 @@ import { citizenApi, authApi, geoApi } from '../../lib/api';
 import type { District, Province, Sector } from '../../types';
 import { PageHeader, Spinner, ErrorBox } from '../../components/ui';
 import { formatDate } from '../../lib/format';
+import { t } from '../../translations';
 
 interface ProfileData {
   id: number;
@@ -65,7 +66,7 @@ export default function Profile() {
           setSectors(ss);
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load profile');
+        setError(e instanceof Error ? e.message : t('common.error'));
       } finally {
         setLoading(false);
       }
@@ -99,7 +100,7 @@ export default function Profile() {
       });
       setSaved(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save profile');
+      setError(err instanceof Error ? err.message : t('common.error'));
     } finally {
       setBusy(false);
     }
@@ -109,16 +110,16 @@ export default function Profile() {
     e.preventDefault();
     setPwMsg(null);
     if (pw.next !== pw.confirm) {
-      setPwMsg({ ok: false, text: 'New passwords do not match' });
+      setPwMsg({ ok: false, text: t('auth.confirmNewPassword') });
       return;
     }
     setPwBusy(true);
     try {
       await authApi.changePassword(pw.current, pw.next);
-      setPwMsg({ ok: true, text: 'Password changed. You have been logged out — please log in again.' });
+      setPwMsg({ ok: true, text: t('citizen.passwordChanged') });
       setPw({ current: '', next: '', confirm: '' });
     } catch (err) {
-      setPwMsg({ ok: false, text: err instanceof Error ? err.message : 'Could not change password' });
+      setPwMsg({ ok: false, text: err instanceof Error ? err.message : t('common.error') });
     } finally {
       setPwBusy(false);
     }
@@ -131,39 +132,39 @@ export default function Profile() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="gov-card p-6">
-        <PageHeader title="My profile" subtitle={`Member since ${formatDate(profile.createdAt)}`} />
+        <PageHeader title={t('citizen.profileTitle')} subtitle={`${t('common.date')}: ${formatDate(profile.createdAt)}`} />
       </div>
 
       <form onSubmit={handleSave} className="gov-card space-y-5 p-6">
         {error && <ErrorBox message={error} />}
         {saved && (
-          <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"><i className="fa-solid fa-circle-check" aria-hidden="true" /> Profile updated successfully.</div>
+          <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"><i className="fa-solid fa-circle-check" aria-hidden="true" /> {t('citizen.profileUpdated')}</div>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="label" htmlFor="pf-first">First name</label>
+            <label className="label" htmlFor="pf-first">{t('auth.firstName')}</label>
             <input id="pf-first" className="input" value={form.firstName} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))} required />
           </div>
           <div>
-            <label className="label" htmlFor="pf-last">Last name</label>
+            <label className="label" htmlFor="pf-last">{t('auth.lastName')}</label>
             <input id="pf-last" className="input" value={form.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} required />
           </div>
         </div>
 
         <div>
-          <label className="label" htmlFor="pf-email">Email</label>
+          <label className="label" htmlFor="pf-email">{t('auth.email')}</label>
           <input id="pf-email" className="input bg-slate-50" value={profile.email} disabled />
-          <p className="mt-1 text-xs text-slate-400">Email cannot be changed. Contact support if needed.</p>
+          <p className="mt-1 text-xs text-slate-400">{t('auth.email')}</p>
         </div>
 
         <div>
-          <label className="label" htmlFor="pf-phone">Phone</label>
+          <label className="label" htmlFor="pf-phone">{t('auth.phone')}</label>
           <input id="pf-phone" className="input" placeholder="+250788000000" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
         </div>
 
         <div>
-          <label className="label" htmlFor="pf-lang">Preferred language</label>
+          <label className="label" htmlFor="pf-lang">{t('auth.preferredLanguage')}</label>
           <select id="pf-lang" className="input" value={form.preferredLanguage} onChange={(e) => setForm((f) => ({ ...f, preferredLanguage: e.target.value }))}>
             <option value="rw">Kinyarwanda</option>
             <option value="en">English</option>
@@ -173,7 +174,7 @@ export default function Profile() {
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <label className="label" htmlFor="pf-province">Province</label>
+            <label className="label" htmlFor="pf-province">{t('auth.province')}</label>
             <select id="pf-province" className="input" value={provinceId} onChange={(e) => { setProvinceId(e.target.value); setDistrictId(''); setSectorId(''); }}>
               <option value="">Select…</option>
               {provinces.map((p) => (
@@ -182,7 +183,7 @@ export default function Profile() {
             </select>
           </div>
           <div>
-            <label className="label" htmlFor="pf-district">District</label>
+            <label className="label" htmlFor="pf-district">{t('auth.district')}</label>
             <select id="pf-district" className="input" value={districtId} disabled={!provinceId} onChange={(e) => { setDistrictId(e.target.value); setSectorId(''); }}>
               <option value="">Select…</option>
               {districts.map((d) => (
@@ -191,7 +192,7 @@ export default function Profile() {
             </select>
           </div>
           <div>
-            <label className="label" htmlFor="pf-sector">Sector</label>
+            <label className="label" htmlFor="pf-sector">{t('auth.sector')}</label>
             <select id="pf-sector" className="input" value={sectorId} disabled={!districtId} onChange={(e) => setSectorId(e.target.value)}>
               <option value="">Select…</option>
               {sectors.map((s) => (
@@ -202,13 +203,13 @@ export default function Profile() {
         </div>
 
         <button type="submit" className="btn-primary" disabled={busy}>
-          {busy ? 'Saving…' : 'Save changes'}
+          {busy ? t('common.saving') : t('common.save')}
         </button>
       </form>
 
       {/* Password change */}
       <div className="gov-card p-6">
-        <h2 className="text-lg font-bold text-slate-900">Change password</h2>
+        <h2 className="text-lg font-bold text-slate-900">{t('citizen.changePassword')}</h2>
         {pwMsg && (
           <div className={`mt-3 rounded-lg px-4 py-3 text-sm ${pwMsg.ok ? 'border border-green-200 bg-green-50 text-green-800' : 'border border-red-200 bg-red-50 text-red-700'}`}>
             {pwMsg.text}
@@ -216,21 +217,21 @@ export default function Profile() {
         )}
         <form onSubmit={handleChangePassword} className="mt-4 space-y-4">
           <div>
-            <label className="label" htmlFor="pw-current">Current password</label>
+            <label className="label" htmlFor="pw-current">{t('citizen.currentPassword')}</label>
             <input id="pw-current" type="password" className="input" value={pw.current} onChange={(e) => setPw((p) => ({ ...p, current: e.target.value }))} required />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="label" htmlFor="pw-next">New password</label>
+              <label className="label" htmlFor="pw-next">{t('auth.newPassword')}</label>
               <input id="pw-next" type="password" className="input" value={pw.next} onChange={(e) => setPw((p) => ({ ...p, next: e.target.value }))} required minLength={8} />
             </div>
             <div>
-              <label className="label" htmlFor="pw-confirm">Confirm new password</label>
+              <label className="label" htmlFor="pw-confirm">{t('auth.confirmNewPassword')}</label>
               <input id="pw-confirm" type="password" className="input" value={pw.confirm} onChange={(e) => setPw((p) => ({ ...p, confirm: e.target.value }))} required />
             </div>
           </div>
           <button type="submit" className="btn-outline" disabled={pwBusy}>
-            {pwBusy ? 'Changing…' : 'Change password'}
+            {pwBusy ? t('common.saving') : t('citizen.changePassword')}
           </button>
         </form>
       </div>
