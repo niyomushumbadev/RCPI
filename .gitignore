@@ -16,6 +16,10 @@ tsc-out.txt
 build-output.txt
 tmp/
 
+# Python bytecode (ai-service)
+__pycache__/
+*.pyc
+
 # Editor and operating-system files
 .vscode/
 .idea/

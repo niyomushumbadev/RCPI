@@ -66,10 +66,12 @@ if (command !== 'generate' && command !== 'push') {
   console.error('Usage: node scripts/prisma-setup.js <generate|push>');
   process.exit(1);
 }
+// Prisma's CLI command is `db push`, not `push`.
+const prismaCommand = command === 'push' ? 'db push' : command;
 
 const target = useSqlite() ? 'SQLite (local dev)' : 'MySQL (managed/production)';
 try {
-  execSync(`npx prisma ${command} ${schemaArgs().join(' ')}`, { cwd: BACKEND, stdio: 'inherit' });
+  execSync(`npx prisma ${prismaCommand} ${schemaArgs().join(' ')}`, { cwd: BACKEND, stdio: 'inherit' });
   console.log(`✓ prisma ${command} → ${target}`);
 } catch (err) {
   process.exit(err.status ?? 1);
