@@ -5,17 +5,17 @@
   "description": "R-CPI — Rwanda Community Problem Intelligence API",
   "main": "dist/index.js",
   "scripts": {
-    "predev": "prisma db push",
+    "predev": "npm run db:push",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "tsx tests/report.task3.test.ts",
     "test:e2e": "tsx ../scripts/e2e-workflow-test.ts",
-    "prisma:generate": "prisma generate",
-    "db:push": "prisma db push",
+    "prisma:generate": "node ../scripts/prisma-setup.js generate",
+    "db:push": "node ../scripts/prisma-setup.js push",
     "db:seed": "tsx prisma/seed.ts",
-    "db:setup": "prisma generate && prisma db push && tsx prisma/seed.ts"
+    "db:setup": "node ../scripts/prisma-setup.js generate && node ../scripts/prisma-setup.js push && tsx prisma/seed.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

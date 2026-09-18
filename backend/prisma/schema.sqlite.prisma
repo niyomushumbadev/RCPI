@@ -1,0 +1,709 @@
+// ─────────────────────────────────────────────────────────────
+// GENERATED FILE — do not edit.
+//
+// Derived from prisma/schema.prisma (canonical, MySQL) by
+// scripts/make-sqlite-schema.js — runs automatically via `npm run db:push`.
+// Local dev uses SQLite (backend/prisma/dev.db); deployment uses MySQL.
+// ─────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────
+// R-CPI — Rwanda Community Problem Intelligence
+// Prisma schema — MySQL (managed provider, e.g. PlanetScale/Railway).
+//
+// Rwanda administrative hierarchy:
+//   Province → District → Sector → Cell
+// Role hierarchy (master spec §3):
+//   CITIZEN → CELL_OFFICER → SECTOR_OFFICER → DISTRICT_ADMIN
+//   → PROVINCE_ADMIN → CITY_ADMIN → NATIONAL_ADMIN → EXECUTIVE
+//   (+ OFFICER legacy alias, SYSTEM_ADMIN, ANALYST)
+// Report lifecycle (master spec §6, 16 states):
+//   DRAFT, SUBMITTED, AI_ANALYSIS, PENDING_VERIFICATION, VERIFIED,
+//   REJECTED, ASSIGNED, IN_PROGRESS, WAITING_CITIZEN, WAITING_DEPARTMENT,
+//   ESCALATED, RESOLVED, PENDING_CLOSURE, CLOSED, REOPENED, ARCHIVED
+// Legacy aliases (RECEIVED, UNDER_REVIEW, REOPEN_REQUESTED) are still
+// accepted by the transition service for backward compatibility.
+// ─────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ═════════════════════════════════════════════════════════════
+// GEOGRAPHY — Rwanda administrative structure
+// ═════════════════════════════════════════════════════════════
+
+model Province {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  code      String     @unique
+  createdAt DateTime   @default(now())
+  districts District[]
+  users     User[]
+  reports   Report[]
+
+  @@map("provinces")
+}
+
+model District {
+  id         Int       @id @default(autoincrement())
+  provinceId Int
+  name       String
+  code       String    @unique
+  createdAt  DateTime  @default(now())
+
+  province Province  @relation(fields: [provinceId], references: [id])
+  sectors  Sector[]
+  users    User[]
+  reports  Report[]
+  departmentDistricts DepartmentDistrict[]
+
+  @@unique([provinceId, name])
+  @@map("districts")
+}
+
+model Sector {
+  id         Int      @id @default(autoincrement())
+  districtId Int
+  name       String
+  code       String   @unique
+  createdAt  DateTime @default(now())
+
+  district District @relation(fields: [districtId], references: [id])
+  cells    Cell[]
+  users    User[]
+  reports  Report[]
+
+  @@unique([districtId, name])
+  @@map("sectors")
+}
+
+model Cell {
+  id       Int      @id @default(autoincrement())
+  sectorId Int
+  name     String
+  code     String   @unique
+  createdAt DateTime @default(now())
+
+  sector Sector @relation(fields: [sectorId], references: [id])
+  reports Report[]
+
+  @@unique([sectorId, name])
+  @@map("cells")
+}
+
+// ═════════════════════════════════════════════════════════════
+// USERS, ROLES & SESSIONS — Task 1 (Authentication)
+// ═════════════════════════════════════════════════════════════
+
+model Role {
+  id          Int             @id @default(autoincrement())
+  name          String          @unique // CITIZEN, OFFICER, DISTRICT_ADMIN, NATIONAL_ADMIN, SYSTEM_ADMIN, ANALYST
+  description String?
+  isSystem    Boolean         @default(false)
+  mainRoleUsers User[]        @relation("mainRole")
+  usersRoles  UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  code        String           @unique
+  name        String
+  description String?
+  roleLinks   RolePermission[]
+  createdAt   DateTime         @default(now())
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  grantedAt    DateTime   @default(now())
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id               Int       @id @default(autoincrement())
+  firstName        String
+  lastName         String
+  email            String    @unique
+  phone            String?
+  nationalId       String?
+  passwordHash     String
+  preferredLanguage String   @default("rw") // rw | en | fr
+  role             Role      @relation("mainRole", fields: [roleId], references: [id])
+  roleId           Int
+  provinceId       Int?
+  districtId       Int?
+  sectorId         Int?
+  isActive         Boolean   @default(true)
+  emailVerified    Boolean   @default(false)
+  lastLoginAt      DateTime?
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  province Province? @relation(fields: [provinceId], references: [id])
+  district District? @relation(fields: [districtId], references: [id])
+  sector   Sector?   @relation(fields: [sectorId], references: [id])
+  roles    UserRole[]
+  reports  Report[]
+  refreshTokens RefreshToken[]
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+model UserRole {
+  userId Int
+  roleId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RefreshToken {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  tokenHash   String   @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+  userAgent   String?
+  ipAddress   String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ═════════════════════════════════════════════════════════════
+// CATEGORIES & DEPARTMENTS — Task 9 (Administration) data
+// ═════════════════════════════════════════════════════════════
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  nameRw    String? // Kinyarwanda name
+  nameFr    String? // French name
+  icon      String?
+  color     String?
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  reports   Report[]
+  children  Category[] @relation("parentChild")
+  parentId  Int?
+  parent    Category?  @relation("parentChild", fields: [parentId], references: [id])
+
+  @@map("categories")
+}
+
+model Department {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  nameRw    String?
+  nameFr    String?
+  email     String?
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  districts DepartmentDistrict[]
+  reports   Report[]
+
+  @@map("departments")
+}
+
+// Departments serve specific districts (geographical routing)
+model DepartmentDistrict {
+  departmentId Int
+  districtId   Int
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  district     District   @relation(fields: [districtId], references: [id], onDelete: Cascade)
+
+  @@id([departmentId, districtId])
+  @@map("department_districts")
+}
+
+// ═════════════════════════════════════════════════════════════
+// REPORTS — Task 3 (Problem Management) + Task 5 (GIS)
+// ═════════════════════════════════════════════════════════════
+
+model Report {
+  id          Int       @id @default(autoincrement())
+  reference   String    @unique
+  title       String
+  description String
+  status      String    @default("SUBMITTED")
+  // Master spec §6: DRAFT | SUBMITTED | AI_ANALYSIS | PENDING_VERIFICATION
+  // | VERIFIED | REJECTED | ASSIGNED | IN_PROGRESS | WAITING_CITIZEN
+  // | WAITING_DEPARTMENT | ESCALATED | RESOLVED | PENDING_CLOSURE
+  // | CLOSED | REOPENED | ARCHIVED.
+  // Legacy aliases still accepted: RECEIVED, UNDER_REVIEW, REOPEN_REQUESTED.
+
+  urgency        String   @default("MEDIUM") // LOW | MEDIUM | HIGH
+  priority       String? // LOW | MEDIUM | HIGH | CRITICAL (officer-adjusted)
+  priorityReason String? // mandatory reason when officer adjusts priority
+  affectedPeople Int?
+  vulnerableGroup Boolean @default(false)
+  severity       String? // LOW | MEDIUM | HIGH | CRITICAL (AI suggestion + officer)
+  deadline       DateTime?
+  deadlineReason String?
+  escalatedAt    DateTime?
+  escalatedTo    String?
+  escalationNote String?
+  duplicateOfId  Int?
+  closedAt       DateTime?
+  deletedAt      DateTime?
+  citizenId      Int
+  categoryId     Int
+  departmentId   Int?     // assigned department
+  assignedOfficerId Int?
+
+  // Location (GIS)
+  provinceId Int
+  districtId Int
+  sectorId   Int?
+  cellId     Int?
+  latitude   Decimal?
+  longitude  Decimal?
+  locationDescription String?
+
+  // Resolution & confirmation lifecycle (workflow §5-8)
+  resolutionDescription String?
+  confirmedById         Int?
+  confirmedByName       String?
+  confirmedAt           DateTime?
+  isArchived            Boolean @default(false)
+  archivedAt            DateTime?
+
+  // AI fields (Task 4) — citizen sees only approved subset
+  aiCategory      String?
+  aiConfidence    Decimal?
+  aiPriorityScore Decimal?
+  aiSummary       String?
+  aiModel         String?
+  aiReviewed      Boolean  @default(false)
+  aiReviewedBy    Int?
+  aiReviewedAt    DateTime?
+
+  isAnonymous   Boolean  @default(false)
+  isPublic      Boolean  @default(false) // visible on community map when RESOLVED etc.
+  upvotes       Int      @default(0)
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime @updatedAt
+  resolvedAt DateTime?
+  resolutionConfirmedAt DateTime? // citizen confirmed the problem is actually solved
+
+  citizen    User       @relation(fields: [citizenId], references: [id])
+  category   Category   @relation(fields: [categoryId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+  province   Province   @relation(fields: [provinceId], references: [id])
+  district   District   @relation(fields: [districtId], references: [id])
+  sector     Sector?    @relation(fields: [sectorId], references: [id])
+  cell       Cell?      @relation(fields: [cellId], references: [id])
+
+  evidence     Evidence[]
+  statusHistory ReportStatusHistory[]
+  updates      ReportUpdate[]
+  messages     ReportMessage[]
+  feedback     Feedback?
+  aiJobs       AIJob[]
+  aiAnalyses   AIAnalysis[]
+  reopenRequests ReportReopenRequest[]
+  confirmations  ReportConfirmation[]
+  assignments    ReportAssignment[]
+
+  @@index([isArchived])
+  @@index([assignedOfficerId, status])
+
+  @@index([citizenId])
+  @@index([status])
+  @@index([districtId, status])
+  @@index([priority])
+  @@index([deadline])
+  @@map("reports")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Report workflow companions (assignments, deadlines, escalations,
+// related/duplicate links, internal notes, reopen requests)
+// ─────────────────────────────────────────────────────────────
+
+model ReportAssignment {
+  id             Int       @id @default(autoincrement())
+  reportId       Int
+  officerId      Int?      // assigned administrator
+  departmentId   Int?
+  assignedBy     Int?
+  assignedByName String?
+  note           String? // assignment instructions
+  priority       String? // LOW | MEDIUM | HIGH | CRITICAL (assignment priority)
+  deadline       DateTime?
+  status         String    @default("PENDING") // PENDING | ACCEPTED | DECLINED | COMPLETED
+  acceptedAt     DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  report Report @relation(fields: [reportId], references: [id])
+
+  @@index([reportId])
+  @@index([officerId, status])
+  @@map("report_assignments")
+}
+
+// Citizen confirmation / rejection of a resolution (workflow §7)
+model ReportConfirmation {
+  id                Int      @id @default(autoincrement())
+  reportId          Int
+  citizenId         Int
+  confirmationType  String // CONFIRMED | REJECTED
+  feedback          String?
+  satisfactionRating Int?
+  createdAt         DateTime @default(now())
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([citizenId])
+  @@map("report_confirmations")
+}
+
+model ReportDeadline {
+  id        Int      @id @default(autoincrement())
+  reportId  Int
+  deadline  DateTime
+  reason    String?
+  actorId   Int?
+  actorName String?
+  createdAt DateTime @default(now())
+
+  @@index([reportId])
+  @@map("report_deadlines")
+}
+
+model ReportEscalation {
+  id        Int      @id @default(autoincrement())
+  reportId  Int
+  fromLevel String?
+  toLevel   String?
+  reason    String?
+  actorId   Int?
+  actorName String?
+  createdAt DateTime @default(now())
+
+  @@index([reportId])
+  @@map("report_escalations")
+}
+
+model ReportRelated {
+  id              Int      @id @default(autoincrement())
+  reportId        Int
+  relatedReportId Int
+  relationType    String   @default("RELATED") // RELATED | DUPLICATE
+  note            String?
+  actorId         Int?
+  createdAt       DateTime @default(now())
+
+  @@index([reportId])
+  @@index([relatedReportId])
+  @@map("report_related_reports")
+}
+
+model ReportInternalNote {
+  id        Int      @id @default(autoincrement())
+  reportId  Int
+  note      String
+  actorId   Int?
+  actorName String?
+  createdAt DateTime @default(now())
+
+  @@index([reportId])
+  @@map("report_internal_notes")
+}
+
+model ReportReopenRequest {
+  id        Int      @id @default(autoincrement())
+  reportId  Int
+  reason    String
+  status    String   @default("PENDING") // PENDING | APPROVED | DECLINED
+  actorId   Int?
+  actorName String?
+  createdAt DateTime @default(now())
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@map("report_reopen_requests")
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model SystemSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String?
+  updatedBy Int?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("system_settings")
+}
+
+// ─── Citizen communication on a report ───
+
+model Evidence {
+  id        Int      @id @default(autoincrement())
+  reportId  Int
+  fileName  String
+  storedName String
+  mimeType  String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@map("evidence")
+}
+
+model ReportStatusHistory {
+  id        Int      @id @default(autoincrement())
+  reportId  Int
+  fromStatus String?
+  toStatus  String
+  note      String?
+  actorId   Int?
+  actorName String?
+  createdAt DateTime @default(now())
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@map("report_status_history")
+}
+
+model ReportUpdate {
+  id        Int      @id @default(autoincrement())
+  reportId  Int
+  message   String
+  isPublic  Boolean  @default(true)
+  authorName String?
+  createdAt DateTime @default(now())
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@map("report_updates")
+}
+
+model ReportMessage {
+  id        Int      @id @default(autoincrement())
+  reportId  Int
+  senderId  Int
+  senderRole String
+  message   String
+  createdAt DateTime @default(now())
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@map("report_messages")
+}
+
+model Feedback {
+  id        Int      @id @default(autoincrement())
+  reportId  Int      @unique
+  rating    Int      // 1..5
+  comment   String?
+  createdAt DateTime @default(now())
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@map("feedback")
+}
+
+// AI decision-support records. Predictions are advisory and never replace
+// the report workflow or an authorised human decision.
+model AIJob {
+  id           Int       @id @default(autoincrement())
+  reportId     Int
+  status       String    @default("PENDING")
+  attempts     Int       @default(0)
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  report   Report     @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  analysis AIAnalysis?
+
+  @@index([status, createdAt])
+  @@index([reportId])
+  @@map("ai_jobs")
+}
+
+model AIAnalysis {
+  id                Int      @id @default(autoincrement())
+  reportId          Int
+  jobId             Int      @unique
+  language          String?
+  overallConfidence Float?
+  status            String   @default("COMPLETED")
+  explanation       String?
+  imageQuality      String?
+  imageUsable       Boolean?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  report           Report              @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  job              AIJob                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  predictions      AIPrediction[]
+  duplicateMatches AIDuplicateMatch[]
+  recommendations  AIRecommendation[]
+  auditLogs        AIAuditLog[]
+
+  @@index([reportId, createdAt])
+  @@map("ai_analysis")
+}
+
+model AIPrediction {
+  id              Int      @id @default(autoincrement())
+  analysisId      Int
+  predictionType  String
+  predictionValue String
+  confidenceScore Float?
+  modelVersion    String
+  createdAt       DateTime @default(now())
+
+  analysis AIAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId, predictionType])
+  @@map("ai_predictions")
+}
+
+model AIDuplicateMatch {
+  id              Int      @id @default(autoincrement())
+  analysisId      Int
+  reportId        Int
+  matchedReportId Int
+  similarityScore Float
+  matchType       String
+  createdAt       DateTime @default(now())
+
+  analysis AIAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, matchedReportId])
+  @@map("ai_duplicate_matches")
+}
+
+model AIRecommendation {
+  id             Int      @id @default(autoincrement())
+  analysisId     Int
+  priority       String
+  department     String?
+  recommendation String
+  createdAt      DateTime @default(now())
+
+  analysis AIAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId])
+  @@map("ai_recommendations")
+}
+
+model AIAuditLog {
+  id         Int      @id @default(autoincrement())
+  analysisId Int
+  event      String
+  actorId    Int?
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  analysis AIAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId, createdAt])
+  @@map("ai_audit_logs")
+}
+
+// ═════════════════════════════════════════════════════════════
+// NOTIFICATIONS — Task 2/ citizen communication
+// ═════════════════════════════════════════════════════════════
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  type      String
+  title     String
+  message   String
+  reportId  Int?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ═════════════════════════════════════════════════════════════
+// AUDIT & SECURITY — Task 10 (cross-cutting)
+// ═════════════════════════════════════════════════════════════
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  actorId      Int?
+  actorName    String?
+  action       String
+  resourceType String
+  resourceId   String?
+  ipAddress    String?
+  userAgent    String?
+  detail       String?
+  createdAt    DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model CommunityAlert {
+  id        Int      @id @default(autoincrement())
+  title     String
+  message   String
+  severity  String   @default("INFO") // INFO | WARNING | CRITICAL
+  category  String?
+  provinceId Int?
+  districtId Int?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+
+  @@map("community_alerts")
+}

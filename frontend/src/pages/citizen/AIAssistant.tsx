@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { aiApi, citizenApi } from '../../lib/api';
 import type { AIAnalysis, ReportListItem } from '../../types';
-import { t } from '../../translations';
+import { t, getLanguage } from '../../translations';
 import { PageHeader, Spinner, ErrorBox } from '../../components/ui';
 
 interface ChatItem { id: number; from: 'citizen' | 'assistant'; text: string }

@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────
 // R-CPI — Rwanda Community Problem Intelligence
-// Prisma schema — MySQL-compatible (SQLite for local dev).
+// Prisma schema — MySQL (managed provider, e.g. PlanetScale/Railway).
 //
 // Rwanda administrative hierarchy:
 //   Province → District → Sector → Cell
@@ -18,10 +18,12 @@
 
 generator client {
   provider = "prisma-client-js"
+  // "native" for local dev, rhel-openssl-3.0.x for Vercel's Amazon Linux runtime.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -31,8 +33,8 @@ datasource db {
 
 model Province {
   id        Int        @id @default(autoincrement())
-  name      String     @unique
-  code      String     @unique
+  name      String     @unique @db.VarChar(190)
+  code      String     @unique @db.VarChar(50)
   createdAt DateTime   @default(now())
   districts District[]
   users     User[]
@@ -42,11 +44,11 @@ model Province {
 }
 
 model District {
-  id        Int       @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   provinceId Int
-  name      String
-  code      String    @unique
-  createdAt DateTime  @default(now())
+  name       String    @db.VarChar(190)
+  code       String    @unique @db.VarChar(50)
+  createdAt  DateTime  @default(now())
 
   province Province  @relation(fields: [provinceId], references: [id])
   sectors  Sector[]
@@ -61,8 +63,8 @@ model District {
 model Sector {
   id         Int      @id @default(autoincrement())
   districtId Int
-  name       String
-  code       String   @unique
+  name       String   @db.VarChar(190)
+  code       String   @unique @db.VarChar(50)
   createdAt  DateTime @default(now())
 
   district District @relation(fields: [districtId], references: [id])
@@ -77,8 +79,8 @@ model Sector {
 model Cell {
   id       Int      @id @default(autoincrement())
   sectorId Int
-  name     String
-  code     String   @unique
+  name     String   @db.VarChar(190)
+  code     String   @unique @db.VarChar(50)
   createdAt DateTime @default(now())
 
   sector Sector @relation(fields: [sectorId], references: [id])
@@ -94,8 +96,8 @@ model Cell {
 
 model Role {
   id          Int             @id @default(autoincrement())
-  name        String          @unique // CITIZEN, OFFICER, DISTRICT_ADMIN, NATIONAL_ADMIN, SYSTEM_ADMIN, ANALYST
-  description String?
+  name          String          @unique @db.VarChar(50) // CITIZEN, OFFICER, DISTRICT_ADMIN, NATIONAL_ADMIN, SYSTEM_ADMIN, ANALYST
+  description String?         @db.Text
   isSystem    Boolean         @default(false)
   mainRoleUsers User[]        @relation("mainRole")
   usersRoles  UserRole[]
@@ -106,9 +108,9 @@ model Role {
 
 model Permission {
   id          Int              @id @default(autoincrement())
-  code        String           @unique
-  name        String
-  description String?
+  code        String           @unique @db.VarChar(100)
+  name        String           @db.VarChar(190)
+  description String?          @db.Text
   roleLinks   RolePermission[]
   createdAt   DateTime         @default(now())
 
@@ -128,13 +130,13 @@ model RolePermission {
 
 model User {
   id               Int       @id @default(autoincrement())
-  firstName        String
-  lastName         String
-  email            String    @unique
-  phone            String?
-  nationalId       String?
-  passwordHash     String
-  preferredLanguage String   @default("rw") // rw | en | fr
+  firstName        String    @db.VarChar(100)
+  lastName         String    @db.VarChar(100)
+  email            String    @unique @db.VarChar(190)
+  phone            String?   @db.VarChar(50)
+  nationalId       String?   @db.VarChar(50)
+  passwordHash     String    @db.VarChar(255)
+  preferredLanguage String   @default("rw") @db.VarChar(10) // rw | en | fr
   role             Role      @relation("mainRole", fields: [roleId], references: [id])
   roleId           Int
   provinceId       Int?
@@ -172,12 +174,12 @@ model UserRole {
 model RefreshToken {
   id          Int      @id @default(autoincrement())
   userId      Int
-  tokenHash   String   @unique
+  tokenHash   String   @unique @db.VarChar(190)
   expiresAt   DateTime
   revokedAt   DateTime?
   createdAt   DateTime @default(now())
-  userAgent   String?
-  ipAddress   String?
+  userAgent   String?  @db.VarChar(255)
+  ipAddress   String?  @db.VarChar(64)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -191,11 +193,11 @@ model RefreshToken {
 
 model Category {
   id        Int       @id @default(autoincrement())
-  name      String    @unique
-  nameRw    String?   // Kinyarwanda name
-  nameFr    String?   // French name
-  icon      String?
-  color     String?
+  name      String    @unique @db.VarChar(190)
+  nameRw    String?   @db.VarChar(190) // Kinyarwanda name
+  nameFr    String?   @db.VarChar(190) // French name
+  icon      String?   @db.VarChar(100)
+  color     String?   @db.VarChar(50)
   isActive  Boolean   @default(true)
   sortOrder Int       @default(0)
   createdAt DateTime  @default(now())
@@ -209,11 +211,11 @@ model Category {
 
 model Department {
   id        Int      @id @default(autoincrement())
-  name      String   @unique
-  nameRw    String?
-  nameFr    String?
-  email     String?
-  phone     String?
+  name      String   @unique @db.VarChar(190)
+  nameRw    String?  @db.VarChar(190)
+  nameFr    String?  @db.VarChar(190)
+  email     String?  @db.VarChar(255)
+  phone     String?  @db.VarChar(50)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   districts DepartmentDistrict[]
@@ -239,27 +241,27 @@ model DepartmentDistrict {
 
 model Report {
   id          Int       @id @default(autoincrement())
-  reference   String    @unique
-  title       String
-  description String
-  status      String    @default("SUBMITTED")
+  reference   String    @unique @db.VarChar(50)
+  title       String    @db.VarChar(255)
+  description String    @db.Text
+  status      String    @default("SUBMITTED") @db.VarChar(50)
   // Master spec §6: DRAFT | SUBMITTED | AI_ANALYSIS | PENDING_VERIFICATION
   // | VERIFIED | REJECTED | ASSIGNED | IN_PROGRESS | WAITING_CITIZEN
   // | WAITING_DEPARTMENT | ESCALATED | RESOLVED | PENDING_CLOSURE
   // | CLOSED | REOPENED | ARCHIVED.
   // Legacy aliases still accepted: RECEIVED, UNDER_REVIEW, REOPEN_REQUESTED.
 
-  urgency        String   @default("MEDIUM") // LOW | MEDIUM | HIGH
-  priority       String? // LOW | MEDIUM | HIGH | CRITICAL (officer-adjusted)
-  priorityReason String? // mandatory reason when officer adjusts priority
+  urgency        String   @default("MEDIUM") @db.VarChar(20) // LOW | MEDIUM | HIGH
+  priority       String?  @db.VarChar(20) // LOW | MEDIUM | HIGH | CRITICAL (officer-adjusted)
+  priorityReason String?  @db.Text // mandatory reason when officer adjusts priority
   affectedPeople Int?
   vulnerableGroup Boolean @default(false)
-  severity       String? // LOW | MEDIUM | HIGH | CRITICAL (AI suggestion + officer)
+  severity       String?  @db.VarChar(20) // LOW | MEDIUM | HIGH | CRITICAL (AI suggestion + officer)
   deadline       DateTime?
-  deadlineReason String?
+  deadlineReason String?  @db.Text
   escalatedAt    DateTime?
-  escalatedTo    String?
-  escalationNote String?
+  escalatedTo    String?  @db.VarChar(190)
+  escalationNote String?  @db.Text
   duplicateOfId  Int?
   closedAt       DateTime?
   deletedAt      DateTime?
@@ -273,24 +275,24 @@ model Report {
   districtId Int
   sectorId   Int?
   cellId     Int?
-  latitude   Decimal?
-  longitude  Decimal?
-  locationDescription String?
+  latitude   Decimal? @db.Decimal(9, 6)
+  longitude  Decimal? @db.Decimal(9, 6)
+  locationDescription String? @db.Text
 
   // Resolution & confirmation lifecycle (workflow §5-8)
-  resolutionDescription String?
+  resolutionDescription String? @db.Text
   confirmedById         Int?
-  confirmedByName       String?
+  confirmedByName       String? @db.VarChar(190)
   confirmedAt           DateTime?
   isArchived            Boolean @default(false)
   archivedAt            DateTime?
 
   // AI fields (Task 4) — citizen sees only approved subset
-  aiCategory      String?
-  aiConfidence    Decimal?
-  aiPriorityScore Decimal?
-  aiSummary       String?
-  aiModel         String?
+  aiCategory      String?  @db.VarChar(190)
+  aiConfidence    Decimal? @db.Decimal(4, 3)
+  aiPriorityScore Decimal? @db.Decimal(4, 3)
+  aiSummary       String?  @db.Text
+  aiModel         String?  @db.VarChar(100)
   aiReviewed      Boolean  @default(false)
   aiReviewedBy    Int?
   aiReviewedAt    DateTime?
@@ -345,11 +347,11 @@ model ReportAssignment {
   officerId      Int?      // assigned administrator
   departmentId   Int?
   assignedBy     Int?
-  assignedByName String?
-  note           String?   // assignment instructions
-  priority       String?   // LOW | MEDIUM | HIGH | CRITICAL (assignment priority)
+  assignedByName String?   @db.VarChar(190)
+  note           String?   @db.Text // assignment instructions
+  priority       String?   @db.VarChar(20) // LOW | MEDIUM | HIGH | CRITICAL (assignment priority)
   deadline       DateTime?
-  status         String    @default("PENDING") // PENDING | ACCEPTED | DECLINED | COMPLETED
+  status         String    @default("PENDING") @db.VarChar(50) // PENDING | ACCEPTED | DECLINED | COMPLETED
   acceptedAt     DateTime?
   completedAt    DateTime?
   createdAt      DateTime  @default(now())
@@ -366,8 +368,8 @@ model ReportConfirmation {
   id                Int      @id @default(autoincrement())
   reportId          Int
   citizenId         Int
-  confirmationType  String   // CONFIRMED | REJECTED
-  feedback          String?
+  confirmationType  String   @db.VarChar(50) // CONFIRMED | REJECTED
+  feedback          String?  @db.Text
   satisfactionRating Int?
   createdAt         DateTime @default(now())
 
@@ -382,9 +384,9 @@ model ReportDeadline {
   id        Int      @id @default(autoincrement())
   reportId  Int
   deadline  DateTime
-  reason    String?
+  reason    String?  @db.Text
   actorId   Int?
-  actorName String?
+  actorName String?  @db.VarChar(190)
   createdAt DateTime @default(now())
 
   @@index([reportId])
@@ -394,11 +396,11 @@ model ReportDeadline {
 model ReportEscalation {
   id        Int      @id @default(autoincrement())
   reportId  Int
-  fromLevel String?
-  toLevel   String?
-  reason    String?
+  fromLevel String?  @db.VarChar(50)
+  toLevel   String?  @db.VarChar(50)
+  reason    String?  @db.Text
   actorId   Int?
-  actorName String?
+  actorName String?  @db.VarChar(190)
   createdAt DateTime @default(now())
 
   @@index([reportId])
@@ -409,8 +411,8 @@ model ReportRelated {
   id              Int      @id @default(autoincrement())
   reportId        Int
   relatedReportId Int
-  relationType    String   @default("RELATED") // RELATED | DUPLICATE
-  note            String?
+  relationType    String   @default("RELATED") @db.VarChar(50) // RELATED | DUPLICATE
+  note            String?  @db.Text
   actorId         Int?
   createdAt       DateTime @default(now())
 
@@ -422,9 +424,9 @@ model ReportRelated {
 model ReportInternalNote {
   id        Int      @id @default(autoincrement())
   reportId  Int
-  note      String
+  note      String   @db.Text
   actorId   Int?
-  actorName String?
+  actorName String?  @db.VarChar(190)
   createdAt DateTime @default(now())
 
   @@index([reportId])
@@ -434,10 +436,10 @@ model ReportInternalNote {
 model ReportReopenRequest {
   id        Int      @id @default(autoincrement())
   reportId  Int
-  reason    String
-  status    String   @default("PENDING") // PENDING | APPROVED | DECLINED
+  reason    String   @db.Text
+  status    String   @default("PENDING") @db.VarChar(50) // PENDING | APPROVED | DECLINED
   actorId   Int?
-  actorName String?
+  actorName String?  @db.VarChar(190)
   createdAt DateTime @default(now())
 
   report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
@@ -449,7 +451,7 @@ model ReportReopenRequest {
 model PasswordResetToken {
   id        Int      @id @default(autoincrement())
   userId    Int
-  tokenHash String   @unique
+  tokenHash String   @unique @db.VarChar(190)
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime @default(now())
@@ -460,8 +462,8 @@ model PasswordResetToken {
 
 model SystemSetting {
   id        Int      @id @default(autoincrement())
-  key       String   @unique
-  value     String?
+  key       String   @unique @db.VarChar(190)
+  value     String?  @db.Text
   updatedBy Int?
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
@@ -474,9 +476,9 @@ model SystemSetting {
 model Evidence {
   id        Int      @id @default(autoincrement())
   reportId  Int
-  fileName  String
-  storedName String
-  mimeType  String
+  fileName  String   @db.VarChar(255)
+  storedName String  @db.VarChar(255)
+  mimeType  String   @db.VarChar(100)
   sizeBytes Int
   createdAt DateTime @default(now())
 
@@ -488,11 +490,11 @@ model Evidence {
 model ReportStatusHistory {
   id        Int      @id @default(autoincrement())
   reportId  Int
-  fromStatus String?
-  toStatus  String
-  note      String?
+  fromStatus String? @db.VarChar(50)
+  toStatus  String   @db.VarChar(50)
+  note      String?  @db.Text
   actorId   Int?
-  actorName String?
+  actorName String?  @db.VarChar(190)
   createdAt DateTime @default(now())
 
   report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
@@ -504,9 +506,9 @@ model ReportStatusHistory {
 model ReportUpdate {
   id        Int      @id @default(autoincrement())
   reportId  Int
-  message   String
+  message   String   @db.Text
   isPublic  Boolean  @default(true)
-  authorName String?
+  authorName String? @db.VarChar(190)
   createdAt DateTime @default(now())
 
   report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
@@ -519,8 +521,8 @@ model ReportMessage {
   id        Int      @id @default(autoincrement())
   reportId  Int
   senderId  Int
-  senderRole String
-  message   String
+  senderRole String  @db.VarChar(50)
+  message   String   @db.Text
   createdAt DateTime @default(now())
 
   report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
@@ -533,7 +535,7 @@ model Feedback {
   id        Int      @id @default(autoincrement())
   reportId  Int      @unique
   rating    Int      // 1..5
-  comment   String?
+  comment   String?  @db.Text
   createdAt DateTime @default(now())
 
   report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
@@ -546,9 +548,9 @@ model Feedback {
 model AIJob {
   id           Int       @id @default(autoincrement())
   reportId     Int
-  status       String    @default("PENDING")
+  status       String    @default("PENDING") @db.VarChar(50)
   attempts     Int       @default(0)
-  errorMessage String?
+  errorMessage String?   @db.Text
   createdAt    DateTime  @default(now())
   startedAt    DateTime?
   completedAt  DateTime?
@@ -565,11 +567,11 @@ model AIAnalysis {
   id                Int      @id @default(autoincrement())
   reportId          Int
   jobId             Int      @unique
-  language          String?
+  language          String?  @db.VarChar(10)
   overallConfidence Float?
-  status            String   @default("COMPLETED")
-  explanation       String?
-  imageQuality      String?
+  status            String   @default("COMPLETED") @db.VarChar(50)
+  explanation       String?  @db.Text
+  imageQuality      String?  @db.VarChar(50)
   imageUsable       Boolean?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -588,10 +590,10 @@ model AIAnalysis {
 model AIPrediction {
   id              Int      @id @default(autoincrement())
   analysisId      Int
-  predictionType  String
-  predictionValue String
+  predictionType  String   @db.VarChar(50)
+  predictionValue String   @db.VarChar(190)
   confidenceScore Float?
-  modelVersion    String
+  modelVersion    String   @db.VarChar(100)
   createdAt       DateTime @default(now())
 
   analysis AIAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
@@ -606,7 +608,7 @@ model AIDuplicateMatch {
   reportId        Int
   matchedReportId Int
   similarityScore Float
-  matchType       String
+  matchType       String   @db.VarChar(50)
   createdAt       DateTime @default(now())
 
   analysis AIAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
@@ -618,9 +620,9 @@ model AIDuplicateMatch {
 model AIRecommendation {
   id             Int      @id @default(autoincrement())
   analysisId     Int
-  priority       String
-  department     String?
-  recommendation String
+  priority       String   @db.VarChar(20)
+  department     String?  @db.VarChar(190)
+  recommendation String   @db.Text
   createdAt      DateTime @default(now())
 
   analysis AIAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
@@ -632,9 +634,9 @@ model AIRecommendation {
 model AIAuditLog {
   id         Int      @id @default(autoincrement())
   analysisId Int
-  event      String
+  event      String   @db.VarChar(100)
   actorId    Int?
-  detail     String?
+  detail     String?  @db.Text
   createdAt  DateTime @default(now())
 
   analysis AIAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
@@ -650,9 +652,9 @@ model AIAuditLog {
 model Notification {
   id        Int      @id @default(autoincrement())
   userId    Int
-  type      String
-  title     String
-  message   String
+  type      String   @db.VarChar(50)
+  title     String   @db.VarChar(190)
+  message   String   @db.Text
   reportId  Int?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -668,13 +670,13 @@ model Notification {
 model AuditLog {
   id           Int      @id @default(autoincrement())
   actorId      Int?
-  actorName    String?
-  action       String
-  resourceType String
-  resourceId   String?
-  ipAddress    String?
-  userAgent    String?
-  detail       String?
+  actorName    String?  @db.VarChar(190)
+  action       String   @db.VarChar(100)
+  resourceType String   @db.VarChar(50)
+  resourceId   String?  @db.VarChar(100)
+  ipAddress    String?  @db.VarChar(64)
+  userAgent    String?  @db.VarChar(255)
+  detail       String?  @db.Text
   createdAt    DateTime @default(now())
 
   actor User? @relation(fields: [actorId], references: [id])
@@ -687,10 +689,10 @@ model AuditLog {
 
 model CommunityAlert {
   id        Int      @id @default(autoincrement())
-  title     String
-  message   String
-  severity  String   @default("INFO") // INFO | WARNING | CRITICAL
-  category  String?
+  title     String   @db.VarChar(190)
+  message   String   @db.Text
+  severity  String   @default("INFO") @db.VarChar(20) // INFO | WARNING | CRITICAL
+  category  String?  @db.VarChar(190)
   provinceId Int?
   districtId Int?
   isActive  Boolean  @default(true)

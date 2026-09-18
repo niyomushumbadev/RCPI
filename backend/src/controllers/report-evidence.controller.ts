@@ -26,7 +26,13 @@ const ALLOWED_MIME = new Set([
 const BLOCKED_EXT = new Set(['.exe', '.js', '.mjs', '.sh', '.bat', '.cmd', '.msi', '.dll', '.php', '.py', '.jar', '.com', '.scr']);
 const MAX_BYTES = 10 * 1024 * 1024;
 
-const uploadDir = path.join(process.cwd(), 'uploads', 'evidence');
+// Vercel serverless functions only allow writes to /tmp — process.cwd() is
+// read-only there. Locally (npm run dev / npm start) uploads still land in
+// backend/uploads/evidence. NOTE: /tmp is ephemeral per instance; for durable
+// evidence storage switch to an object-store driver (S3/R2) later.
+const uploadDir = process.env.VERCEL
+  ? '/tmp/rcpi-uploads/evidence'
+  : path.join(process.cwd(), 'uploads', 'evidence');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 export const evidenceUpload = multer({

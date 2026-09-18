@@ -465,15 +465,15 @@ export default function WorkflowReportDetail() {
           <div className="card p-6">
             <h2 className="mb-4 font-bold text-slate-900">{t('citizen.timeline')}</h2>
             <ol className="relative space-y-4 border-l-2 border-slate-100 pl-5">
-              {report.timeline.map((t) => (
-                <li key={t.id} className="relative">
+              {report.timeline.map((entry) => (
+                <li key={entry.id} className="relative">
                   <span className="absolute -left-[27px] top-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-slate-400" />
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-slate-700">{t.fromStatus ? `${t(`status.${t.fromStatus}`)} → ` : ''}{t(`status.${t.toStatus}`)}</span>
-                    <span className="text-xs text-slate-400">{formatDateTime(t.createdAt)}</span>
+                    <span className="text-sm font-semibold text-slate-700">{entry.fromStatus ? `${t(`status.${entry.fromStatus}`)} → ` : ''}{t(`status.${entry.toStatus}`)}</span>
+                    <span className="text-xs text-slate-400">{formatDateTime(entry.createdAt)}</span>
                   </div>
-                  {t.note && <p className="mt-0.5 text-sm text-slate-500">{t.note}</p>}
-                  {t.actorName && <p className="text-xs text-slate-400">— {t.actorName}</p>}
+                  {entry.note && <p className="mt-0.5 text-sm text-slate-500">{entry.note}</p>}
+                  {entry.actorName && <p className="text-xs text-slate-400">— {entry.actorName}</p>}
                 </li>
               ))}
             </ol>

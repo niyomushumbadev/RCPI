@@ -23,3 +23,6 @@ tmp/
 Thumbs.db
 # Runtime evidence uploads (user content, not source)
 backend/uploads/
+
+# Vercel CLI project link + local build cache
+.vercel/
